@@ -1684,6 +1684,18 @@ AS_IF([test "x$enable_linux_native_aio" = "xyes"], [
 AC_MSG_RESULT([$enable_linux_native_aio])
 TS_ARG_ENABLE_VAR([use], [linux_native_aio])
 
+
+AC_MSG_CHECKING([enable DLB])
+AC_ARG_ENABLE([DLB],
+  [AS_HELP_STRING([--enable-DLB], [DLB support @<:@default=no@:>@])],
+  [enable_DLB="${enableval}"],
+  [enable_DLB=no]
+)
+AC_MSG_RESULT([$enable_DLB])
+TS_ARG_ENABLE_VAR([use], [DLB])
+AM_CONDITIONAL([ENABLE_DLB], [test x$enable_DLB = xyes])
+
+
 # Check for hwloc library.
 # If we don't find it, disable checking for header.
 use_hwloc=0

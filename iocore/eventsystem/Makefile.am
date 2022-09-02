@@ -27,6 +27,7 @@ noinst_LIBRARIES = libinkevent.a
 
 libinkevent_a_SOURCES = \
 	EventSystem.cc \
+	IDLB.cc \
 	IOBuffer.cc \
 	I_Action.h \
 	I_Continuation.h \

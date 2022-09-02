@@ -51,4 +51,13 @@ traffic_top_traffic_top_LDADD = \
 	@CURSES_LIBS@ \
 	@HWLOC_LIBS@
 
+if ENABLE_DLB
+traffic_top_traffic_top_SOURCES += \
+        ../iocore/eventsystem/IDLB.cc
+traffic_top_traffic_top_LDFLAGS += \
+        -ldlb \
+        -lrt
 endif
+
+endif
+

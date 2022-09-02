@@ -57,3 +57,12 @@ traffic_logstats_traffic_logstats_LDADD += \
   @HWLOC_LIBS@ \
   @YAMLCPP_LIBS@ \
   @LIBPROFILER@ -lm
+
+
+if ENABLE_DLB
+traffic_logstats_traffic_logstats_SOURCES += \
+        ../iocore/eventsystem/IDLB.cc
+traffic_logstats_traffic_logstats_LDFLAGS += \
+        -ldlb \
+        -lrt
+endif

@@ -53,3 +53,11 @@ traffic_logcat_traffic_logcat_LDADD += \
 	@HWLOC_LIBS@ \
 	@YAMLCPP_LIBS@ \
 	@LIBPROFILER@ -lm
+
+if ENABLE_DLB
+traffic_logcat_traffic_logcat_SOURCES += \
+        ../iocore/eventsystem/IDLB.cc
+traffic_logcat_traffic_logcat_LDFLAGS += \
+        -ldlb \
+        -lrt
+endif

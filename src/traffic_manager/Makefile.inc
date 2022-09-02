@@ -59,3 +59,11 @@ traffic_manager_traffic_manager_LDADD += \
 	wccp/libwccp.a \
 	@OPENSSL_LIBS@
 endif
+
+if ENABLE_DLB
+traffic_manager_traffic_manager_SOURCES += \
+        ../iocore/eventsystem/IDLB.cc
+traffic_manager_traffic_manager_LDFLAGS += \
+        -ldlb \
+        -lrt
+endif

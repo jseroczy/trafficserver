@@ -103,3 +103,11 @@ traffic_server_traffic_server_LDADD += \
   $(top_builddir)/iocore/net/quic/libquic.a \
   $(top_builddir)/iocore/eventsystem/libinkevent.a
 endif
+
+if ENABLE_DLB
+traffic_server_traffic_server_SOURCES += \
+        ../iocore/eventsystem/IDLB.cc
+traffic_server_traffic_server_LDFLAGS += \
+        -ldlb \
+        -lrt
+endif

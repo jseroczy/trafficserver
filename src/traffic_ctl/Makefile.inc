@@ -51,3 +51,11 @@ traffic_ctl_traffic_ctl_LDADD = \
 	$(top_builddir)/src/tscore/libtscore.la \
 	$(top_builddir)/src/tscpp/util/libtscpputil.la \
 	@HWLOC_LIBS@
+
+if ENABLE_DLB
+traffic_ctl_traffic_ctl_SOURCES += \
+        ../iocore/eventsystem/IDLB.cc
+traffic_ctl_traffic_ctl_LDFLAGS = \
+        -ldlb \
+        -lrt
+endif
