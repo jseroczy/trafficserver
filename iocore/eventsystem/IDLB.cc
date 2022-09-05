@@ -1,8 +1,7 @@
-#include "IDLB.h"
 #include "stdio.h"
 #include <error.h>
+#include "P_EventSystem.h"
 
-static int some = 1;
 /* private variables */
 static dlb_domain_hdl_t domain;
 static dlb_dev_cap_t cap;
@@ -63,7 +62,6 @@ void DLB_queue::print_ports()
 DLB_device::DLB_device()
 {
 	printf("DEBUG: Hi I am DLB_device constructor\n");
-	printf("Some %d\n", some);
 
 	/* Open DLB device */
 	if (dlb_open(ID, &dlb_hdl) == -1)

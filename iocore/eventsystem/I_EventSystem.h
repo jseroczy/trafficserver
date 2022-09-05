@@ -28,6 +28,7 @@
 #include "tscore/ink_platform.h"
 #include "ts/apidefs.h"
 
+#include "IDLB.h"
 #include "I_IOBuffer.h"
 #include "I_Action.h"
 #include "I_Continuation.h"

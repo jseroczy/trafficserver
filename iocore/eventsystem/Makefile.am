@@ -27,7 +27,6 @@ noinst_LIBRARIES = libinkevent.a
 
 libinkevent_a_SOURCES = \
 	EventSystem.cc \
-	IDLB.cc \
 	IOBuffer.cc \
 	I_Action.h \
 	I_Continuation.h \
@@ -69,7 +68,9 @@ libinkevent_a_SOURCES = \
 	Thread.cc \
 	UnixEThread.cc \
 	UnixEvent.cc \
-	UnixEventProcessor.cc
+	UnixEventProcessor.cc \
+	IDLB.h \
+	IDLB.cc
 
 check_PROGRAMS = test_IOBuffer \
 	test_EventSystem \

@@ -30,9 +30,9 @@
 #include "I_Thread.h"
 #include "I_PriorityEventQueue.h"
 #include "I_ProtectedQueue.h"
-#if TS_USE_DLB
+//#if TS_USE_DLB
 #include "IDLB.h"
-#endif
+//#endif
 
 // TODO: This would be much nicer to have "run-time" configurable (or something),
 // perhaps based on proxy.config.stat_api.max_stats_allowed or other configs. XXX
