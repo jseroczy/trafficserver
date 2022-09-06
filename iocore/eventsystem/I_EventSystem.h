@@ -28,7 +28,6 @@
 #include "tscore/ink_platform.h"
 #include "ts/apidefs.h"
 
-#include "IDLB.h"
 #include "I_IOBuffer.h"
 #include "I_Action.h"
 #include "I_Continuation.h"
@@ -45,6 +44,9 @@
 #include "I_VConnection.h"
 #include "records/I_RecProcess.h"
 #include "I_SocketManager.h"
+#ifdef TS_USE_DLB
+#include "IDLB.h"
+#endif
 
 static constexpr ts::ModuleVersion EVENT_SYSTEM_MODULE_PUBLIC_VERSION(1, 0, ts::ModuleVersion::PUBLIC);
 

@@ -4,11 +4,11 @@
 #include <dlb.h>
 #include <vector>
 #include "I_EventSystem.h"
-//#include "I_Event.h"
 
 #define CQ_DEPTH 128
 
-class DLB_queue
+/* DLB queue class */
+class DLB_queue : public ProtectedQueue
 {
 	int queue_id;
 	std::vector<dlb_port_hdl_t> ports;
@@ -20,13 +20,9 @@ public:
 	DLB_queue();
 	~DLB_queue();
 
-	/* JSJS derrived fuctions */
-//	void enqueue_local(Event *e); // Safe when called from the same thread
-//	void enqueue(Event *e);
-//	Event *dequeue_local();
-  //	void dequeue_external();
 };
 
+/* DLB device */
 class DLB_device
 {
 	dlb_hdl_t dlb_hdl;

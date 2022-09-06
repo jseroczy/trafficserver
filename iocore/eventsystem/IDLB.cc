@@ -7,28 +7,28 @@ static dlb_domain_hdl_t domain;
 static dlb_dev_cap_t cap;
 static int ldb_pool_id;
 static int dir_pool_id;
-/* Add var and alg to protect double init of DLB_dev */
+static bool is_dlb_init = false;
 
 DLB_queue::DLB_queue()
 {
-	printf(" Create DLB queue\n");
+	printf("DEBUG_DLB: Create DLB queue\n");
 	queue_id = dlb_create_dir_queue(domain, -1);
 	if (queue_id == -1)
 		error(1, errno, "dlb_create_dir_queue");
-	printf("DLB queue creation success\n");
+	printf("DEBUG_DLB: DLB queue creation success\n");
 }
 
 DLB_queue::~DLB_queue()
 {
-	/* Close all ports */
 	/* Detach all ports */
-    //if (dlb_detach_port(tx_args.port) == -1)
-        //error(1, errno, "dlb_detach_port");
+	for(dlb_port_hdl_t port : ports)
+		if(dlb_detach_port(port) == -1)
+			error(1, errno, "dlb_detach_port");
 }
 
 dlb_port_hdl_t DLB_queue::add_port()
 {
-	printf("Adding new port to queue\n");
+	printf("DEBUG_DLB: Adding new port to queue\n");
 
 	/* Prepare args for the port */
 	dlb_create_port_t args;
@@ -50,95 +50,106 @@ dlb_port_hdl_t DLB_queue::add_port()
 	dlb_port_hdl_t port = dlb_attach_dir_port(domain, port_id);
 	if (port == NULL)
 		error(1, errno, "dlb_attach_dir_port");
+	else
+		ports.push_back(port);
 
 	return port;
 }
 
 void DLB_queue::print_ports()
 {
-	printf("Printing all ports which this queue contains:\n");
+	printf("DLB_DEBUG: Printing all ports which this queue contains:\n");
 }
 
 DLB_device::DLB_device()
 {
-	printf("DEBUG: Hi I am DLB_device constructor\n");
+	printf("DEBUG_DLB: Hi I am DLB_device constructor\n");
 
-	/* Open DLB device */
-	if (dlb_open(ID, &dlb_hdl) == -1)
-		error(1, errno, "dlb_open");
-	printf("DLB device sacesfully opened, ID = %d\n", ID);
-
-	/* get DLB device capabilietes */
-	if (dlb_get_dev_capabilities(dlb_hdl, &cap))
-		error(1, errno, "dlb_get_dev_capabilities");
-	printf("Succesfully get DLB capabilietes\n");
-
-	/* Get DLB device resources information */
-	if (dlb_get_num_resources(dlb_hdl, &rsrcs))
-		error(1, errno, "dlb_get_num_resources");
-	printf("Succesfully get DLB resources info\n");
-
-	/* Creat scheduler domain */
-	domain_id = create_sched_domain();
-	if (domain_id == -1)
-		error(1, errno, "dlb_create_sched_domain");
-	printf("Succesfully create scheduler domain\n");
-
-	domain = dlb_attach_sched_domain(dlb_hdl, domain_id);
-	if (domain == NULL)
-		error(1, errno, "dlb_attach_sched_domain");
-
-	if (!cap.combined_credits)
+	if(!is_dlb_init)
 	{
-		int max_ldb_credits = rsrcs.num_ldb_credits * partial_resources / 100;
-		int max_dir_credits = rsrcs.num_dir_credits * partial_resources / 100;
+		/* Open DLB device */
+		if (dlb_open(ID, &dlb_hdl) == -1)
+			error(1, errno, "dlb_open");
+		printf("DEBUG_DLB: DLB device sacesfully opened, ID = %d\n", ID);
 
-		if (use_max_credit_ldb == true)
-			ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
-		else
-			if (num_credit_ldb <= max_ldb_credits)
-				ldb_pool_id = dlb_create_ldb_credit_pool(domain,
-								num_credit_ldb);
-		else
-			error(1, EINVAL, "Requested ldb credits are unavailable!");
+		/* get DLB device capabilietes */
+		if (dlb_get_dev_capabilities(dlb_hdl, &cap))
+			error(1, errno, "dlb_get_dev_capabilities");
+		printf("DEBUG_DLB: Succesfully get DLB capabilietes\n");
 
-		if (ldb_pool_id == -1)
-			error(1, errno, "dlb_create_ldb_credit_pool");
+		/* Get DLB device resources information */
+		if (dlb_get_num_resources(dlb_hdl, &rsrcs))
+			error(1, errno, "dlb_get_num_resources");
+		printf("DEBUG_DLB: Succesfully get DLB resources info\n");
 
-		if (use_max_credit_dir == true)
-			dir_pool_id = dlb_create_dir_credit_pool(domain, max_dir_credits);
-		else
-			if (num_credit_dir <= max_dir_credits)
-				dir_pool_id = dlb_create_dir_credit_pool(domain,
-                                                         	num_credit_dir);
-		else
-			error(1, EINVAL, "Requested dir credits are unavailable!");
+		/* Creat scheduler domain */
+		domain_id = create_sched_domain();
+		if (domain_id == -1)
+			error(1, errno, "dlb_create_sched_domain");
+		printf("DEBUG_DLB: Succesfully create scheduler domain\n");
 
-		if (dir_pool_id == -1)
-			error(1, errno, "dlb_create_dir_credit_pool");
-	}else{
-		int max_credits = rsrcs.num_credits * partial_resources / 100;
+		domain = dlb_attach_sched_domain(dlb_hdl, domain_id);
+		if (domain == NULL)
+			error(1, errno, "dlb_attach_sched_domain");
 
-		if (use_max_credit_combined == true)
-			ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
-		else
-			if (num_credit_combined <= max_credits)
-				ldb_pool_id = dlb_create_credit_pool(domain,
-                                                    	num_credit_combined);
-		else
-			error(1, EINVAL, "Requested combined credits are unavailable!");
+		if (!cap.combined_credits)
+		{
+			int max_ldb_credits = rsrcs.num_ldb_credits * partial_resources / 100;
+			int max_dir_credits = rsrcs.num_dir_credits * partial_resources / 100;
 
-		if (ldb_pool_id == -1)
-			error(1, errno, "dlb_create_credit_pool");
+			if (use_max_credit_ldb == true)
+				ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
+			else
+				if (num_credit_ldb <= max_ldb_credits)
+					ldb_pool_id = dlb_create_ldb_credit_pool(domain,
+									num_credit_ldb);
+			else
+				error(1, EINVAL, "Requested ldb credits are unavailable!");
+
+			if (ldb_pool_id == -1)
+				error(1, errno, "dlb_create_ldb_credit_pool");
+
+			if (use_max_credit_dir == true)
+				dir_pool_id = dlb_create_dir_credit_pool(domain, max_dir_credits);
+			else
+				if (num_credit_dir <= max_dir_credits)
+					dir_pool_id = dlb_create_dir_credit_pool(domain,
+                                                         		num_credit_dir);
+			else
+				error(1, EINVAL, "Requested dir credits are unavailable!");
+
+			if (dir_pool_id == -1)
+				error(1, errno, "dlb_create_dir_credit_pool");
+		}else{
+			int max_credits = rsrcs.num_credits * partial_resources / 100;
+
+			if (use_max_credit_combined == true)
+				ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
+			else
+				if (num_credit_combined <= max_credits)
+					ldb_pool_id = dlb_create_credit_pool(domain,
+                                                    		num_credit_combined);
+			else
+				error(1, EINVAL, "Requested combined credits are unavailable!");
+
+			if (ldb_pool_id == -1)
+				error(1, errno, "dlb_create_credit_pool");
+		}
+
+		printf("DEBUG_DLB: Succesfully create DLB device class object\n");
+		is_dlb_init = true;
 	}
-
-	printf("Succesfully create DLB device class object\n");
+	else
+	{
+		printf("Cannot create two DLB devices\n");
+		exit(1);
+	}
 }
 
 
 DLB_device::~DLB_device()
 {
-        printf("DEBUG: Hi I am DLB_device destructor\n");
+        printf("DEBUG_DLB: DEBUG: Hi I am DLB_device destructor\n");
 
 	/* Detach and reset shceduler domain */
 	if (dlb_detach_sched_domain(domain) == -1)
@@ -150,6 +161,8 @@ DLB_device::~DLB_device()
 	/* Close the DLB device */
 	if (dlb_close(dlb_hdl) == -1)
 		error(1, errno, "dlb_close");
+
+	is_dlb_init = false;
 
 }
 
