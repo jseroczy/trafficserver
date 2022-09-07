@@ -9,6 +9,8 @@ static int ldb_pool_id;
 static int dir_pool_id;
 static bool is_dlb_init = false;
 
+#define CQ_DEPTH 128
+
 DLB_queue::DLB_queue()
 {
 	printf("DEBUG_DLB: Create DLB queue\n");
@@ -56,11 +58,63 @@ dlb_port_hdl_t DLB_queue::add_port()
 	return port;
 }
 
-void DLB_queue::print_ports()
+void
+DLB_queue::print_ports()
 {
 	printf("DLB_DEBUG: Printing all ports which this queue contains:\n");
 }
 
+void
+DLB_queue::enqueue(Event *e)
+{
+	static int cnt_help = 0;
+	dlb_event_t event;
+
+	/* Initialize the static fields in the send event */
+	event.send.flow_id = 0;
+	event.send.queue_id = queue_id;
+	event.send.sched_type = SCHED_DIRECTED;
+	event.send.priority = 0;
+	/* Initialize the dynamic fields in the send event */
+	event.adv_send.udata64 = 10000;
+	event.adv_send.udata16 = cnt_help++;
+
+
+	ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
+	EThread *e_ethread   = e->ethread;
+	e->in_the_prot_queue = 1;
+
+
+	/* Send the event */
+	auto ret = 0;
+	ret = dlb_send(tx_port, 1, &event);
+	if(ret < 0)
+		printf("Problem with sending pocket\n");
+
+}
+
+Event *
+DLB_queue::dequeue_local()
+{
+
+	return NULL;
+}
+
+void
+DLB_queue::dequeue_external()
+{
+
+}
+
+void
+DLB_queue::enqueue_local(Event *e)
+{
+
+}
+
+/**************************************************************
+*DLB device class
+*************************************************************/
 DLB_device::DLB_device()
 {
 	printf("DEBUG_DLB: Hi I am DLB_device constructor\n");

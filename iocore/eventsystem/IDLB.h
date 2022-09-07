@@ -5,13 +5,16 @@
 #include <vector>
 #include "I_EventSystem.h"
 
-#define CQ_DEPTH 128
-
 /* DLB queue class */
 class DLB_queue : public ProtectedQueue
 {
 	int queue_id;
 	std::vector<dlb_port_hdl_t> ports;
+
+	/* port for reading */
+	dlb_port_hdl_t rx_port;
+	/* port for writing */
+	dlb_port_hdl_t tx_port;
 
 public:
 	int get_queue_id() { return queue_id; }
@@ -19,6 +22,12 @@ public:
 	dlb_port_hdl_t add_port();
 	DLB_queue();
 	~DLB_queue();
+
+	void enqueue(Event *e);
+	void enqueue_local(Event *e); // Safe when called from the same thread
+	void remove(Event *e) {}
+	Event *dequeue_local();
+	void dequeue_external();       // Dequeue any external events.
 
 };
 
