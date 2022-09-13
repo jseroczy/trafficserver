@@ -117,6 +117,10 @@ extern "C" int plock(int);
 #include <gperftools/heap-profiler.h>
 #endif
 
+#if TS_ENABLE_DLB
+#include "iocore/eventsystem/IDLB.h"
+#endif
+
 //
 // Global Data
 //
@@ -1847,6 +1851,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // This call is required for win_9xMe
   // without this this_ethread() is failing when
   // start_HttpProxyServer is called from main thread
+  DLB_device dlb_dev;
   Thread *main_thread = new EThread;
   main_thread->set_specific();
 

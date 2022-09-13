@@ -3,20 +3,95 @@
 #include "P_EventSystem.h"
 
 /* private variables */
-static dlb_domain_hdl_t domain;
+static dlb_hdl_t dlb_hdl;
+static int partial_resources = 100;
+static int num_credit_combined;
+static int num_credit_ldb = 128;
+static int num_credit_dir = 128;
+static bool use_max_credit_combined = false;
+static bool use_max_credit_ldb = false;
+static bool use_max_credit_dir = false;
+
+static dlb_resources_t rsrcs;
 static dlb_dev_cap_t cap;
-static int ldb_pool_id;
-static int dir_pool_id;
 static bool is_dlb_init = false;
 
-#define CQ_DEPTH 128
+#define CQ_DEPTH 32
+
+enum wait_mode_t{
+	POOL,
+	INTERRUPT,
+}wait_mode=INTERRUPT;
 
 DLB_queue::DLB_queue()
 {
+	printf("DLB_DEBUG: Start creating DLB queue\n");
+	/* Create scheduler for this queue */
+	domain_id = create_sched_domain();
+	if (domain_id == -1)
+		error(1, errno, "dlb_create_sched_domain");
+	printf("DEBUG_DLB: Succesfully create scheduler domain\n");
+
+	domain = dlb_attach_sched_domain(dlb_hdl, domain_id);
+	if (domain == NULL)
+		error(1, errno, "dlb_attach_sched_domain");
+
+	if (!cap.combined_credits)
+	{
+		int max_ldb_credits = 128; //rsrcs.num_ldb_credits * partial_resources / 100;
+		int max_dir_credits = 128; //rsrcs.num_dir_credits * partial_resources / 100;
+
+		if (use_max_credit_ldb == true)
+			ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
+		else
+			if (num_credit_ldb <= max_ldb_credits)
+				ldb_pool_id = dlb_create_ldb_credit_pool(domain,
+								num_credit_ldb);
+			else
+				error(1, EINVAL, "Requested ldb credits are unavailable!");
+
+		if (ldb_pool_id == -1)
+			error(1, errno, "dlb_create_ldb_credit_pool");
+
+		if (use_max_credit_dir == true)
+			dir_pool_id = dlb_create_dir_credit_pool(domain, max_dir_credits);
+		else
+			if (num_credit_dir <= max_dir_credits)
+				dir_pool_id = dlb_create_dir_credit_pool(domain,
+								num_credit_dir);
+			else
+				error(1, EINVAL, "Requested dir credits are unavailable!");
+
+		if (dir_pool_id == -1)
+			error(1, errno, "dlb_create_dir_credit_pool");
+	}else{
+		int max_credits = 128; //rsrcs.num_credits * partial_resources / 100;
+
+		if (use_max_credit_combined == true)
+			ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
+		else
+			if (num_credit_combined <= max_credits)
+				ldb_pool_id = dlb_create_credit_pool(domain,
+							num_credit_combined);
+			else
+				error(1, EINVAL, "Requested combined credits are unavailable!");
+
+		if (ldb_pool_id == -1)
+			error(1, errno, "dlb_create_credit_pool");
+	}
+
+	/* Create dir DLB queue */
 	printf("DEBUG_DLB: Create DLB queue\n");
 	queue_id = dlb_create_dir_queue(domain, -1);
 	if (queue_id == -1)
 		error(1, errno, "dlb_create_dir_queue");
+
+	/* create rx_port */
+	rx_port = add_port(0);
+	/* create tx_port */
+	tx_port = add_port(1);
+
+	start_sched();
 	printf("DEBUG_DLB: DLB queue creation success\n");
 }
 
@@ -26,9 +101,16 @@ DLB_queue::~DLB_queue()
 	for(dlb_port_hdl_t port : ports)
 		if(dlb_detach_port(port) == -1)
 			error(1, errno, "dlb_detach_port");
+
+	/* Detach and reset shceduler domain */
+	if (dlb_detach_sched_domain(domain) == -1)
+		error(1, errno, "dlb_detach_sched_domain");
+
+	if (dlb_reset_sched_domain(dlb_hdl, domain_id) == -1)
+		error(1, errno, "dlb_reset_sched_domain");
 }
 
-dlb_port_hdl_t DLB_queue::add_port()
+dlb_port_hdl_t DLB_queue::add_port(int dir)
 {
 	printf("DEBUG_DLB: Adding new port to queue\n");
 
@@ -45,7 +127,11 @@ dlb_port_hdl_t DLB_queue::add_port()
 	args.cq_depth = CQ_DEPTH;
 
 	/* Create port */
-	int port_id = dlb_create_dir_port(domain, &args, queue_id);
+	int port_id;
+	if(dir)
+		port_id = dlb_create_dir_port(domain, &args, -1);
+	else
+		port_id = dlb_create_dir_port(domain, &args, queue_id);
 	if (port_id == -1)
 		error(1, errno, "dlb_create_dir_port");
 
@@ -76,40 +162,125 @@ DLB_queue::enqueue(Event *e)
 	event.send.sched_type = SCHED_DIRECTED;
 	event.send.priority = 0;
 	/* Initialize the dynamic fields in the send event */
-	event.adv_send.udata64 = 10000;
-	event.adv_send.udata16 = cnt_help++;
-
-
-	ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
-	EThread *e_ethread   = e->ethread;
-	e->in_the_prot_queue = 1;
-
+	event.adv_send.udata64 = 0x1000; //(uint64_t)e;
+	//event.adv_send.udata16 = cnt_help++;
+	printf("DLB enque: udata64 %x\n", event.adv_send.udata64);
 
 	/* Send the event */
 	auto ret = 0;
-	ret = dlb_send(tx_port, 1, &event);
-	if(ret < 0)
-		printf("Problem with sending pocket\n");
-
+	for(int i = 0; i < 10; i++)
+	{
+		ret = dlb_send(tx_port, 1, &event);
+		if(ret == -1)
+			printf("Problem with sending pocket\n");
+		else if(!ret)
+			printf("Tranismit zero packets\n");
+		else
+		{
+			printf("enq ret = %d\n", ret);
+			break;
+		}
+	}
+//	dlb_queue_depth_levels_t lev;
+//	printf("DLB_DEBUG: enq_ext %p\t", e);
+//
+//	dlb_event_t event_rec;
+//	ret = dlb_recv_no_pop(rx_port, 1, false, &event_rec);
+//	if(ret == -1 || ret == 0)
+//		printf("What?????\n\n\n");
+//	else
+//		printf("Uffffffffffffff\n\n\n");
+//	printf("queue cap: %d\n", dlb_adv_read_queue_depth_counter(domain, queue_id, true, lev));
 }
 
 Event *
 DLB_queue::dequeue_local()
 {
+/*	dlb_event_t events;
 
+	int ret = 0;
+
+	//ret = dlb_recv(rx_port, 1, (wait_mode == INTERRUPT), &events);
+	if(!ret) printf("Why zero\n");
+	else if(ret != -1)
+	{
+		printf("Eureca!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		if(events.recv.error)
+			printf("DLB recv error\n");
+		printf("DLB deq udata64 %x\n", events.recv.udata64);
+		Event *e = (Event *)events.recv.udata64;
+		printf("DLB_DEBUG: deq_loc: %p\t", e);
+		return e;
+	}
+	else
+		printf("DLB_DEBUG: PROBLEM WITH RECIVE\n");*/
 	return NULL;
 }
 
 void
 DLB_queue::dequeue_external()
 {
+	dlb_event_t events;
+
+	int ret = 0;
+
+	ret = dlb_recv(rx_port, 1, false /*(wait_mode == INTERRUPT)*/, &events);
+	if(!ret)printf("Why zero\n");
+	else if(ret != -1)
+	{
+		printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		if(events.recv.error)
+			printf("DLB recive error\n");
+		printf("DLB deq udata64 %x\n", events.recv.udata64);
+		Event *e = (Event *)events.recv.udata64;
+		printf("DLB_DEBUG: deq_ext %p\t", e);
+	}
+        else
+		printf("DLB_DEBUG: PROBLEM WITH RECIVE\n");
 
 }
 
 void
 DLB_queue::enqueue_local(Event *e)
 {
+/*	static int cnt_help = 0;
+	dlb_event_t event;
 
+	event.send.flow_id = 0;
+	event.send.queue_id = queue_id;
+	event.send.sched_type = SCHED_DIRECTED;
+	event.send.priority = 0;
+
+	event.adv_send.udata64 = 0x1000; //(uint64_t)e;
+	//event.adv_send.udata16 = cnt_help++;
+	printf("DLB enq udata64 %x\n", event.adv_send.udata64);
+
+	auto ret = 0;
+	for(int i = 0; i < 10; i++)
+	{
+		ret = dlb_send(tx_port, 1, &event);
+		if(ret == -1)
+			printf("Problem with sending packets\n");
+		else if(!ret)
+			printf("Transmit zero packets\n");
+		else
+		{
+			printf("enq ret = %d\n", ret);
+			//break;
+		}
+	}
+
+        dlb_queue_depth_levels_t lev;
+        printf("DLB_DEBUG: enq_ext %p\t", e);
+
+        dlb_event_t event_rec;
+        ret = dlb_recv_no_pop(rx_port, 1, false, &event_rec);
+        if(ret == -1 || ret == 0)
+                printf("What?????\n\n\n");
+        else
+                printf("Uffffffffffffff\n\n\n");
+printf("queue cap: %d\n", dlb_adv_read_queue_depth_counter(domain, queue_id, true, lev));
+*/
 }
 
 /**************************************************************
@@ -136,60 +307,6 @@ DLB_device::DLB_device()
 			error(1, errno, "dlb_get_num_resources");
 		printf("DEBUG_DLB: Succesfully get DLB resources info\n");
 
-		/* Creat scheduler domain */
-		domain_id = create_sched_domain();
-		if (domain_id == -1)
-			error(1, errno, "dlb_create_sched_domain");
-		printf("DEBUG_DLB: Succesfully create scheduler domain\n");
-
-		domain = dlb_attach_sched_domain(dlb_hdl, domain_id);
-		if (domain == NULL)
-			error(1, errno, "dlb_attach_sched_domain");
-
-		if (!cap.combined_credits)
-		{
-			int max_ldb_credits = rsrcs.num_ldb_credits * partial_resources / 100;
-			int max_dir_credits = rsrcs.num_dir_credits * partial_resources / 100;
-
-			if (use_max_credit_ldb == true)
-				ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
-			else
-				if (num_credit_ldb <= max_ldb_credits)
-					ldb_pool_id = dlb_create_ldb_credit_pool(domain,
-									num_credit_ldb);
-			else
-				error(1, EINVAL, "Requested ldb credits are unavailable!");
-
-			if (ldb_pool_id == -1)
-				error(1, errno, "dlb_create_ldb_credit_pool");
-
-			if (use_max_credit_dir == true)
-				dir_pool_id = dlb_create_dir_credit_pool(domain, max_dir_credits);
-			else
-				if (num_credit_dir <= max_dir_credits)
-					dir_pool_id = dlb_create_dir_credit_pool(domain,
-                                                         		num_credit_dir);
-			else
-				error(1, EINVAL, "Requested dir credits are unavailable!");
-
-			if (dir_pool_id == -1)
-				error(1, errno, "dlb_create_dir_credit_pool");
-		}else{
-			int max_credits = rsrcs.num_credits * partial_resources / 100;
-
-			if (use_max_credit_combined == true)
-				ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
-			else
-				if (num_credit_combined <= max_credits)
-					ldb_pool_id = dlb_create_credit_pool(domain,
-                                                    		num_credit_combined);
-			else
-				error(1, EINVAL, "Requested combined credits are unavailable!");
-
-			if (ldb_pool_id == -1)
-				error(1, errno, "dlb_create_credit_pool");
-		}
-
 		printf("DEBUG_DLB: Succesfully create DLB device class object\n");
 		is_dlb_init = true;
 	}
@@ -205,13 +322,6 @@ DLB_device::~DLB_device()
 {
         printf("DEBUG_DLB: DEBUG: Hi I am DLB_device destructor\n");
 
-	/* Detach and reset shceduler domain */
-	if (dlb_detach_sched_domain(domain) == -1)
-		error(1, errno, "dlb_detach_sched_domain");
-
-	if (dlb_reset_sched_domain(dlb_hdl, domain_id) == -1)
-		error(1, errno, "dlb_reset_sched_domain");
-
 	/* Close the DLB device */
 	if (dlb_close(dlb_hdl) == -1)
 		error(1, errno, "dlb_close");
@@ -220,7 +330,7 @@ DLB_device::~DLB_device()
 
 }
 
-void DLB_device::start_sched()
+void DLB_queue::start_sched()
 {
 	if (dlb_launch_domain_alert_thread(domain, NULL, NULL))
 		error(1, errno, "dlb_launch_domain_alert_thread");
@@ -230,18 +340,18 @@ void DLB_device::start_sched()
 }
 
 
-int DLB_device::create_sched_domain()
+int DLB_queue::create_sched_domain()
 {
     int p_rsrsc = partial_resources;
     dlb_create_sched_domain_t args;
 
     args.num_ldb_queues = 0;
     args.num_ldb_ports = 0;
-    args.num_dir_ports = 64; // for now all 64 ports, change it later
+    args.num_dir_ports = 2; // for now all 64 ports, change it later
     args.num_ldb_event_state_entries = 0;
     if (!cap.combined_credits) {
-        args.num_ldb_credits = rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
-        args.num_dir_credits = rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
+        args.num_ldb_credits = 128; //rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
+        args.num_dir_credits = 128; //rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
         args.num_ldb_credit_pools = 1;
         args.num_dir_credit_pools = 1;
     } else {
