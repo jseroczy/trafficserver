@@ -118,8 +118,10 @@ EventProcessor::schedule(Event *e, EventType etype)
   }
 
   if (curr_thread != nullptr && e->ethread == curr_thread) {
+    e->ethread->DLBEventQueueExternal.enqueue_local(e);
     e->ethread->EventQueueExternal.enqueue_local(e);
   } else {
+    e->ethread->DLBEventQueueExternal.enqueue(e);
     e->ethread->EventQueueExternal.enqueue(e);
   }
 

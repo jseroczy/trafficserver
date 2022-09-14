@@ -139,6 +139,7 @@ EThread::process_event(Event *e, int calling_code)
   WEAK_MUTEX_TRY_LOCK(lock, e->mutex, this);
   if (!lock.is_locked()) {
     e->timeout_at = cur_time + DELAY_FOR_RETRY;
+    DLBEventQueueExternal.enqueue_local(e);
     EventQueueExternal.enqueue_local(e);
   } else {
     if (e->cancelled) {
@@ -161,6 +162,7 @@ EThread::process_event(Event *e, int calling_code)
         } else {
           e->timeout_at = Thread::get_hrtime_updated() + e->period;
         }
+        DLBEventQueueExternal.enqueue_local(e);
         EventQueueExternal.enqueue_local(e);
       }
     } else if (!e->in_the_prot_queue && !e->in_the_priority_queue) {
@@ -175,11 +177,13 @@ EThread::process_queue(Que(Event, link) * NegativeQueue, int *ev_count, int *nq_
   Event *e;
 
   // Move events from the external thread safe queues to the local queue.
+  DLBEventQueueExternal.dequeue_external();
   EventQueueExternal.dequeue_external();
 
   // execute all the available external events that have
   // already been dequeued
   while ((e = EventQueueExternal.dequeue_local())) {
+    DLBEventQueueExternal.dequeue_local();
     ++(*ev_count);
     if (e->cancelled) {
       free_event(e);

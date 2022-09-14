@@ -46,6 +46,7 @@ extern ClassAllocator<Event> eventAllocator;
 void
 ProtectedQueue::enqueue(Event *e)
 {
+  printf("Prot_enq_ext: %p\n", e);
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;
@@ -65,6 +66,7 @@ void
 ProtectedQueue::dequeue_external()
 {
   Event *e = static_cast<Event *>(ink_atomiclist_popall(&al));
+  printf("Prot_deq_ext: %p\n", e);
   // invert the list, to preserve order
   SLL<Event, Event::Link_link> l, t;
   t.head = e;
