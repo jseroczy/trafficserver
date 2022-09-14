@@ -14,7 +14,8 @@ static bool use_max_credit_dir = false;
 
 static dlb_resources_t rsrcs;
 static dlb_dev_cap_t cap;
-static bool is_dlb_init = false;
+static bool is_dlb_init = false; //JSJS
+static int queue_ctr_dg = 0;
 
 #define CQ_DEPTH 32
 
@@ -25,6 +26,7 @@ enum wait_mode_t{
 
 DLB_queue::DLB_queue()
 {
+	queue_prog_id = queue_ctr_dg++;
 	printf("DLB_DEBUG: Start creating DLB queue\n");
 	/* Create scheduler for this queue */
 	domain_id = create_sched_domain();
@@ -153,7 +155,6 @@ DLB_queue::print_ports()
 void
 DLB_queue::enqueue(Event *e)
 {
-	static int cnt_help = 0;
 	dlb_event_t event;
 
 	/* Initialize the static fields in the send event */
@@ -162,9 +163,7 @@ DLB_queue::enqueue(Event *e)
 	event.send.sched_type = SCHED_DIRECTED;
 	event.send.priority = 0;
 	/* Initialize the dynamic fields in the send event */
-	event.adv_send.udata64 = 0x1000; //(uint64_t)e;
-	//event.adv_send.udata16 = cnt_help++;
-	printf("DLB enque: udata64 %x\n", event.adv_send.udata64);
+	event.adv_send.udata64 = (uint64_t)e;
 
 	/* Send the event */
 	auto ret = 0;
@@ -173,24 +172,10 @@ DLB_queue::enqueue(Event *e)
 		ret = dlb_send(tx_port, 1, &event);
 		if(ret == -1)
 			printf("Problem with sending pocket\n");
-		else if(!ret)
-			printf("Tranismit zero packets\n");
 		else
-		{
-			printf("enq ret = %d\n", ret);
 			break;
-		}
 	}
-//	dlb_queue_depth_levels_t lev;
-//	printf("DLB_DEBUG: enq_ext %p\t", e);
-//
-//	dlb_event_t event_rec;
-//	ret = dlb_recv_no_pop(rx_port, 1, false, &event_rec);
-//	if(ret == -1 || ret == 0)
-//		printf("What?????\n\n\n");
-//	else
-//		printf("Uffffffffffffff\n\n\n");
-//	printf("queue cap: %d\n", dlb_adv_read_queue_depth_counter(domain, queue_id, true, lev));
+	printf("DLB_DEBUG: queue: %d\t enq_ext %p\t", queue_prog_id, e);
 }
 
 Event *
@@ -221,23 +206,20 @@ void
 DLB_queue::dequeue_external()
 {
 	dlb_event_t events;
-
+	Event *e = nullptr;
 	int ret = 0;
 
 	ret = dlb_recv(rx_port, 1, false /*(wait_mode == INTERRUPT)*/, &events);
-	if(!ret)printf("Why zero\n");
-	else if(ret != -1)
+	if(ret == -1 )
+		printf("Problem with receiving packets\n");
+	else if(ret > 0)
 	{
-		printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 		if(events.recv.error)
 			printf("DLB recive error\n");
-		printf("DLB deq udata64 %x\n", events.recv.udata64);
-		Event *e = (Event *)events.recv.udata64;
-		printf("DLB_DEBUG: deq_ext %p\t", e);
+		e = (Event *)events.recv.udata64;
 	}
-        else
-		printf("DLB_DEBUG: PROBLEM WITH RECIVE\n");
 
+	printf("DLB_DEBUG: queue: %d\t deq_ext %p\t", queue_prog_id, e);
 }
 
 void

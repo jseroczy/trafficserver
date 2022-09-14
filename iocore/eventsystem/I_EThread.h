@@ -318,11 +318,11 @@ public:
   /** Private Data for AIO. */
   Que(Continuation, link) aio_ops;
 
-#ifdef TS_USE_DLB
-  DLB_queue EventQueueExternal;
-#else
+//#ifdef TS_USE_DLB
+  DLB_queue DLBEventQueueExternal;
+//#else
   ProtectedQueue EventQueueExternal;
-#endif
+//#endif
   PriorityEventQueue EventQueue;
 
   static constexpr int NO_ETHREAD_ID = -1;

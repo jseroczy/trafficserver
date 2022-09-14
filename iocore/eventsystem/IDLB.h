@@ -24,6 +24,7 @@ class DLB_queue : public ProtectedQueue
 	int dir_pool_id;
 	int  create_sched_domain();
 	void start_sched();
+	int queue_prog_id;
 public:
 	int get_queue_id() { return queue_id; }
 	void print_ports();
