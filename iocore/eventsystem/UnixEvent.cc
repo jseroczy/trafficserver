@@ -46,7 +46,6 @@ Event::schedule_imm(int acallback_event)
   immediate  = true;
   mutex      = continuation->mutex;
   if (!in_the_prot_queue) {
-    ethread->DLBEventQueueExternal.enqueue_local(this);
     ethread->EventQueueExternal.enqueue_local(this);
   }
 }
@@ -65,7 +64,6 @@ Event::schedule_at(ink_hrtime atimeout_at, int acallback_event)
   immediate  = false;
   mutex      = continuation->mutex;
   if (!in_the_prot_queue) {
-    ethread->DLBEventQueueExternal.enqueue_local(this);
     ethread->EventQueueExternal.enqueue_local(this);
   }
 }
@@ -83,7 +81,6 @@ Event::schedule_in(ink_hrtime atimeout_in, int acallback_event)
   immediate  = false;
   mutex      = continuation->mutex;
   if (!in_the_prot_queue) {
-    ethread->DLBEventQueueExternal.enqueue_local(this);
     ethread->EventQueueExternal.enqueue_local(this);
   }
 }
@@ -106,7 +103,6 @@ Event::schedule_every(ink_hrtime aperiod, int acallback_event)
   immediate = false;
   mutex     = continuation->mutex;
   if (!in_the_prot_queue) {
-    ethread->DLBEventQueueExternal.enqueue_local(this);
     ethread->EventQueueExternal.enqueue_local(this);
   }
 }

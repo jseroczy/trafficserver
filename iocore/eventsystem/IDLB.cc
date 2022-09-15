@@ -14,8 +14,11 @@ static bool use_max_credit_dir = false;
 
 static dlb_resources_t rsrcs;
 static dlb_dev_cap_t cap;
-static bool is_dlb_init = false; //JSJS
 static int queue_ctr_dg = 0;
+
+/* DLB private variables */
+static int queue_ctr;
+static bool is_dlb_init = false; //JSJS check it
 
 #define CQ_DEPTH 32
 
@@ -23,6 +26,28 @@ enum wait_mode_t{
 	POOL,
 	INTERRUPT,
 }wait_mode=INTERRUPT;
+
+/************************************************
+*DLB init
+***********************************************/
+void dlb_device_init()
+{
+
+}
+
+/***********************************************
+*DLB deinit
+***********************************************/
+void dlb_device_clean()
+{
+	/* When the queue number equal 0 don't need dlb */
+	if(!queue_ctr)
+	{
+		/* Clean dlb device */
+	}
+}
+
+
 
 DLB_queue::DLB_queue()
 {
@@ -32,7 +57,7 @@ DLB_queue::DLB_queue()
 	domain_id = create_sched_domain();
 	if (domain_id == -1)
 		error(1, errno, "dlb_create_sched_domain");
-	printf("DEBUG_DLB: Succesfully create scheduler domain\n");
+//	printf("DEBUG_DLB: Succesfully create scheduler domain\n");
 
 	domain = dlb_attach_sched_domain(dlb_hdl, domain_id);
 	if (domain == NULL)
@@ -83,7 +108,7 @@ DLB_queue::DLB_queue()
 	}
 
 	/* Create dir DLB queue */
-	printf("DEBUG_DLB: Create DLB queue\n");
+//	printf("DEBUG_DLB: Create DLB queue\n");
 	queue_id = dlb_create_dir_queue(domain, -1);
 	if (queue_id == -1)
 		error(1, errno, "dlb_create_dir_queue");
@@ -114,7 +139,7 @@ DLB_queue::~DLB_queue()
 
 dlb_port_hdl_t DLB_queue::add_port(int dir)
 {
-	printf("DEBUG_DLB: Adding new port to queue\n");
+//	printf("DEBUG_DLB: Adding new port to queue\n");
 
 	/* Prepare args for the port */
 	dlb_create_port_t args;
@@ -175,34 +200,16 @@ DLB_queue::enqueue(Event *e)
 		else
 			break;
 	}
-	printf("DLB_DEBUG: queue: %d\t enq_ext %p\t", queue_prog_id, e);
+//	printf("DLB_DEBUG: queue: %d\t enq_ext %p\n", queue_prog_id, e);
 }
 
 Event *
 DLB_queue::dequeue_local()
 {
-/*	dlb_event_t events;
-
-	int ret = 0;
-
-	//ret = dlb_recv(rx_port, 1, (wait_mode == INTERRUPT), &events);
-	if(!ret) printf("Why zero\n");
-	else if(ret != -1)
-	{
-		printf("Eureca!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-		if(events.recv.error)
-			printf("DLB recv error\n");
-		printf("DLB deq udata64 %x\n", events.recv.udata64);
-		Event *e = (Event *)events.recv.udata64;
-		printf("DLB_DEBUG: deq_loc: %p\t", e);
-		return e;
-	}
-	else
-		printf("DLB_DEBUG: PROBLEM WITH RECIVE\n");*/
 	return NULL;
 }
 
-void
+Event *
 DLB_queue::dequeue_external()
 {
 	dlb_event_t events;
@@ -219,50 +226,13 @@ DLB_queue::dequeue_external()
 		e = (Event *)events.recv.udata64;
 	}
 
-	printf("DLB_DEBUG: queue: %d\t deq_ext %p\t", queue_prog_id, e);
+	//printf("DLB_DEBUG: queue: %d\t deq_ext %p\t", queue_prog_id, e);
+	return e;
 }
 
 void
 DLB_queue::enqueue_local(Event *e)
 {
-/*	static int cnt_help = 0;
-	dlb_event_t event;
-
-	event.send.flow_id = 0;
-	event.send.queue_id = queue_id;
-	event.send.sched_type = SCHED_DIRECTED;
-	event.send.priority = 0;
-
-	event.adv_send.udata64 = 0x1000; //(uint64_t)e;
-	//event.adv_send.udata16 = cnt_help++;
-	printf("DLB enq udata64 %x\n", event.adv_send.udata64);
-
-	auto ret = 0;
-	for(int i = 0; i < 10; i++)
-	{
-		ret = dlb_send(tx_port, 1, &event);
-		if(ret == -1)
-			printf("Problem with sending packets\n");
-		else if(!ret)
-			printf("Transmit zero packets\n");
-		else
-		{
-			printf("enq ret = %d\n", ret);
-			//break;
-		}
-	}
-
-        dlb_queue_depth_levels_t lev;
-        printf("DLB_DEBUG: enq_ext %p\t", e);
-
-        dlb_event_t event_rec;
-        ret = dlb_recv_no_pop(rx_port, 1, false, &event_rec);
-        if(ret == -1 || ret == 0)
-                printf("What?????\n\n\n");
-        else
-                printf("Uffffffffffffff\n\n\n");
-printf("queue cap: %d\n", dlb_adv_read_queue_depth_counter(domain, queue_id, true, lev));
-*/
 }
 
 /**************************************************************
@@ -291,12 +261,53 @@ DLB_device::DLB_device()
 
 		printf("DEBUG_DLB: Succesfully create DLB device class object\n");
 		is_dlb_init = true;
+		this->dlb_handler = dlb_hdl;
 	}
 	else
 	{
-		printf("Cannot create two DLB devices\n");
-		exit(1);
+
+                 /* Open DLB device */
+                 if (dlb_open(ID, &dlb_handler) == -1)
+                         error(1, errno, "dlb_open");
+                 printf("DEBUG_DLB: DLB device sacesfully opened, ID = %d\n", ID);
+
+                 /* get DLB device capabilietes */
+                 if (dlb_get_dev_capabilities(dlb_handler, &cap))
+                         error(1, errno, "dlb_get_dev_capabilities");
+                 printf("DEBUG_DLB: Succesfully get DLB capabilietes\n");
+
+                 /* Get DLB device resources information */
+
+                 if (dlb_get_num_resources(dlb_handler, &rsrcs))
+			error(1, errno, "dlb_get_num_resources");
+                 printf("DEBUG_DLB: Succesfully get DLB resources info\n");
+
+                 printf("DEBUG_DLB: Succesfully create DLB device class object\n");
+//		printf("Cannot create two DLB devices\n");
+//		exit(1);
 	}
+}
+
+DLB_device::DLB_device(int device_id)
+{
+         printf("DEBUG_DLB: Hi I am DLB_device constructor\n");
+		ID = device_id;
+                 /* Open DLB device */
+                 if (dlb_open(ID, &dlb_handler) == -1)
+                         error(1, errno, "dlb_open");
+                 printf("DEBUG_DLB: DLB device sacesfully opened, ID = %d\n", ID);
+
+                 /* get DLB device capabilietes */
+                 if (dlb_get_dev_capabilities(dlb_handler, &cap))
+                         error(1, errno, "dlb_get_dev_capabilities");
+                 printf("DEBUG_DLB: Succesfully get DLB capabilietes\n");
+
+                 /* Get DLB device resources information */
+                 if (dlb_get_num_resources(dlb_handler, &rsrcs))
+                         error(1, errno, "dlb_get_num_resources");
+                 printf("DEBUG_DLB: Succesfully get DLB resources info\n");
+
+                 printf("DEBUG_DLB: Succesfully create DLB device class object\n");
 }
 
 
@@ -305,11 +316,10 @@ DLB_device::~DLB_device()
         printf("DEBUG_DLB: DEBUG: Hi I am DLB_device destructor\n");
 
 	/* Close the DLB device */
-	if (dlb_close(dlb_hdl) == -1)
+	if (dlb_close(this->dlb_handler) == -1)
 		error(1, errno, "dlb_close");
 
-	is_dlb_init = false;
-
+//	is_dlb_init = false;
 }
 
 void DLB_queue::start_sched()

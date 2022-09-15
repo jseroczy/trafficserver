@@ -36,6 +36,7 @@
 
 #include "tscore/ink_platform.h"
 #include "I_Event.h"
+#include "IDLB.h"
 struct ProtectedQueue {
   void enqueue(Event *e);
   void signal();
@@ -46,6 +47,7 @@ struct ProtectedQueue {
   void dequeue_external();       // Dequeue any external events.
   void wait(ink_hrtime timeout); // Wait for @a timeout nanoseconds on a condition variable if there are no events.
 
+  DLB_queue dlb_q;
   InkAtomicList al;
   ink_mutex lock;
   ink_cond might_have_data;

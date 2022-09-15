@@ -6,7 +6,7 @@
 #include "I_EventSystem.h"
 
 /* DLB queue class */
-class DLB_queue : public ProtectedQueue
+class DLB_queue
 {
 	int queue_id;
 	std::vector<dlb_port_hdl_t> ports;
@@ -36,21 +36,23 @@ public:
 	void enqueue_local(Event *e); // Safe when called from the same thread
 	void remove(Event *e) {}
 	Event *dequeue_local();
-	void dequeue_external();       // Dequeue any external events.
+	Event *dequeue_external();       // Dequeue any external events.
 
 };
 
 /* DLB device */
 class DLB_device
 {
-	int ID;
+	int ID = 1;
 
 	std::vector< class DLB_queue> queues;
+	dlb_hdl_t dlb_handler;
 
 public:
 
 	void print_resources();
 	DLB_device();
+	DLB_device(int);
 	~DLB_device();
 };
 

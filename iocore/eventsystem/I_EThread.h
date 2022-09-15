@@ -30,9 +30,6 @@
 #include "I_Thread.h"
 #include "I_PriorityEventQueue.h"
 #include "I_ProtectedQueue.h"
-#if TS_USE_DLB
-#include "IDLB.h"
-#endif
 
 // TODO: This would be much nicer to have "run-time" configurable (or something),
 // perhaps based on proxy.config.stat_api.max_stats_allowed or other configs. XXX
@@ -318,11 +315,7 @@ public:
   /** Private Data for AIO. */
   Que(Continuation, link) aio_ops;
 
-//#ifdef TS_USE_DLB
-  DLB_queue DLBEventQueueExternal;
-//#else
   ProtectedQueue EventQueueExternal;
-//#endif
   PriorityEventQueue EventQueue;
 
   static constexpr int NO_ETHREAD_ID = -1;
