@@ -1848,16 +1848,18 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // Can't generate a log message yet, do that right after Diags is
   // setup.
 
+#ifdef TS_USE_DLB
+  IDLB::DLB_device dlb_dev1;
+  IDLB::DLB_device dlb_dev2(2);
+  IDLB::DLB_device dlb_dev3(3);
+  //DLB_device dlb_dev4;
+#endif
+
   // This call is required for win_9xMe
   // without this this_ethread() is failing when
   // start_HttpProxyServer is called from main thread
-  DLB_device dlb_dev1;
-  DLB_device dlb_dev2(2);
-  DLB_device dlb_dev3(3);
-  //DLB_device dlb_dev4;
   Thread *main_thread = new EThread;
   main_thread->set_specific();
-  //DLB_device dlb_dev2(2);
 
   // Re-initialize diagsConfig based on records.config configuration
   REC_ReadConfigString(diags_log_filename, "proxy.config.diags.logfile.filename", sizeof(diags_log_filename));
