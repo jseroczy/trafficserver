@@ -40,7 +40,11 @@
 #include "IDLB.h"
 #endif
 struct ProtectedQueue {
+#ifdef TS_USE_DLB
   void enqueue(Event *e, dlb_port_hdl_t port);
+#else
+  void enqueue(Event *e);
+#endif
   void signal();
   int try_signal();             // Use non blocking lock and if acquired, signal
   void enqueue_local(Event *e); // Safe when called from the same thread
@@ -50,7 +54,7 @@ struct ProtectedQueue {
   void wait(ink_hrtime timeout); // Wait for @a timeout nanoseconds on a condition variable if there are no events.
 
 #ifdef TS_USE_DLB
-  DLB_queue *dlb_q;
+  IDLB::DLB_queue *dlb_q;
 #endif
   InkAtomicList al;
   ink_mutex lock;
@@ -58,4 +62,5 @@ struct ProtectedQueue {
   Que(Event, link) localQueue;
 
   ProtectedQueue();
+  ~ProtectedQueue();
 };

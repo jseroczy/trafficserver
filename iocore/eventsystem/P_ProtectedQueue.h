@@ -38,7 +38,17 @@ ProtectedQueue::ProtectedQueue()
   ink_mutex_init(&lock);
   ink_atomiclist_init(&al, "ProtectedQueue", (char *)&e.link.next - (char *)&e);
   ink_cond_init(&might_have_data);
-  dlb_q = get_dlb_queue();
+#ifdef TS_USE_DLB
+  dlb_q = IDLB::get_dlb_queue();
+#endif
+}
+
+TS_INLINE
+ProtectedQueue::~ProtectedQueue()
+{
+#ifdef TS_USE_DLB
+	IDLB::push_back_dlb_queue(&dlb_q);
+#endif
 }
 
 TS_INLINE void

@@ -117,10 +117,14 @@ EThread::schedule(Event *e)
   e->continuation->control_flags.set_flags(get_cont_flags().get_flags());
 
   EThread *curr_thread     = this_ethread();
-  if (e->ethread == this_ethread()) {
+  if (e->ethread == curr_thread) {
     EventQueueExternal.enqueue_local(e);
   } else {
+#ifdef TS_USE_DLB
     EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_q->get_port());
+#else
+    EventQueueExternal.enqueue(e);
+#endif
   }
 
   return e;
