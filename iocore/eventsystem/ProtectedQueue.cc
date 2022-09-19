@@ -44,14 +44,15 @@
 extern ClassAllocator<Event> eventAllocator;
 
 void
-ProtectedQueue::enqueue(Event *e)
+ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
 {
+  printf("Enqueue: %p\n", e);
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;
   bool was_empty       = (ink_atomiclist_push(&al, e) == nullptr);
 
-  dlb_q.enqueue(e);
+  dlb_q->enqueue(e, port);
   if (was_empty) {
     EThread *inserting_thread = this_ethread();
     // queue e->ethread in the list of threads to be signalled
@@ -74,7 +75,7 @@ ProtectedQueue::dequeue_external()
   }
   // insert into localQueue
   while ((e = l.pop())) {
-    printf("Nor dequeue ext: %p\n", e);
+    printf("Nor dequeue ext: %p\t", e);
     if (!e->cancelled) {
       localQueue.enqueue(e);
     } else {
@@ -82,11 +83,13 @@ ProtectedQueue::dequeue_external()
       eventAllocator.free(e);
     }
   }
+  printf("\n");
 
-  while(e = dlb_q.dequeue_external())
+  while(e = dlb_q->dequeue_external())
   {
-	printf("DLB dequeue ext: %p\n", e);
+	printf("DLB dequeue ext: %p\t", e);
   }
+  printf("\n");
 }
 
 void

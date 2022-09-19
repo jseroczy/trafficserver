@@ -120,7 +120,7 @@ EventProcessor::schedule(Event *e, EventType etype)
   if (curr_thread != nullptr && e->ethread == curr_thread) {
     e->ethread->EventQueueExternal.enqueue_local(e);
   } else {
-    e->ethread->EventQueueExternal.enqueue(e);
+    e->ethread->EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_q->get_port());
   }
 
   return e;
