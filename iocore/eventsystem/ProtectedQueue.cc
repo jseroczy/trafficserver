@@ -44,15 +44,22 @@
 extern ClassAllocator<Event> eventAllocator;
 
 void
+#ifdef TS_USE_DLB
 ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
+#else
+ProtectedQueue::enqueue(Event *e)
+#endif
 {
-  printf("Enqueue: %p\n", e);
+  //printf("Enqueue: %p\n", e);
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;
+#ifdef TS_USE_DLB
+  bool was_empty = dlb_q->enqueue(e, port);
+#else
   bool was_empty       = (ink_atomiclist_push(&al, e) == nullptr);
+#endif
 
-  dlb_q->enqueue(e, port);
   if (was_empty) {
     EThread *inserting_thread = this_ethread();
     // queue e->ethread in the list of threads to be signalled
@@ -66,6 +73,19 @@ ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
 void
 ProtectedQueue::dequeue_external()
 {
+#ifdef TS_USE_DLB
+  Event *e;
+  while((e = dlb_q->dequeue_external()))
+  {
+    if(!e->cancelled)
+      localQueue.enqueue(e);
+    else
+    {
+      e->mutex = nullptr;
+      eventAllocator.free(e);
+    }
+  }
+#else
   Event *e = static_cast<Event *>(ink_atomiclist_popall(&al));
   // invert the list, to preserve order
   SLL<Event, Event::Link_link> l, t;
@@ -75,7 +95,6 @@ ProtectedQueue::dequeue_external()
   }
   // insert into localQueue
   while ((e = l.pop())) {
-    printf("Nor dequeue ext: %p\t", e);
     if (!e->cancelled) {
       localQueue.enqueue(e);
     } else {
@@ -83,13 +102,7 @@ ProtectedQueue::dequeue_external()
       eventAllocator.free(e);
     }
   }
-  printf("\n");
-
-  while(e = dlb_q->dequeue_external())
-  {
-	printf("DLB dequeue ext: %p\t", e);
-  }
-  printf("\n");
+#endif
 }
 
 void
@@ -101,7 +114,11 @@ ProtectedQueue::wait(ink_hrtime timeout)
    *   - And then the Event Thread goes to sleep and waits for the wakeup signal of `EThread::might_have_data`,
    *   - The `EThread::lock` will be locked again when the Event Thread wakes up.
    */
+#ifdef TS_USE_DLB
+  if(dlb_q->is_empty() && localQueue.empty()) {
+#else
   if (INK_ATOMICLIST_EMPTY(al) && localQueue.empty()) {
+#endif
     timespec ts = ink_hrtime_to_timespec(timeout);
     ink_cond_timedwait(&might_have_data, &lock, &ts);
   }

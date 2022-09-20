@@ -55,8 +55,9 @@ struct ProtectedQueue {
 
 #ifdef TS_USE_DLB
   IDLB::DLB_queue *dlb_q;
-#endif
+#else
   InkAtomicList al;
+#endif
   ink_mutex lock;
   ink_cond might_have_data;
   Que(Event, link) localQueue;

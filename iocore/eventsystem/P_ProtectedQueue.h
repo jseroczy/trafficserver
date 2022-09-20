@@ -36,11 +36,12 @@ ProtectedQueue::ProtectedQueue()
 {
   Event e;
   ink_mutex_init(&lock);
-  ink_atomiclist_init(&al, "ProtectedQueue", (char *)&e.link.next - (char *)&e);
-  ink_cond_init(&might_have_data);
 #ifdef TS_USE_DLB
   dlb_q = IDLB::get_dlb_queue();
+#else
+  ink_atomiclist_init(&al, "ProtectedQueue", (char *)&e.link.next - (char *)&e);
 #endif
+  ink_cond_init(&might_have_data);
 }
 
 TS_INLINE
@@ -86,7 +87,11 @@ TS_INLINE void
 ProtectedQueue::remove(Event *e)
 {
   ink_assert(e->in_the_prot_queue);
+#ifdef TS_USE_DLB
+  if(dlb_q->remove(e)) {
+#else
   if (!ink_atomiclist_remove(&al, e)) {
+#endif
     localQueue.remove(e);
   }
   e->in_the_prot_queue = 0;

@@ -91,7 +91,7 @@ namespace IDLB
 		return port;
 	}
 
-	void
+	bool
 	DLB_queue::enqueue(Event *e, dlb_port_hdl_t port_tx)
 	{
 		dlb_event_t event;
@@ -115,6 +115,7 @@ namespace IDLB
 			else if(ret)
 				break;
 		}
+		return false;
 	}
 
 	Event *
@@ -133,6 +134,7 @@ namespace IDLB
 				printf("DLB recive error\n");
 			e = (Event *)events.recv.udata64;
 		}
+		//printf("Dequeue: %p\n", e);
 
 		return e;
 	}

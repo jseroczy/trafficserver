@@ -32,9 +32,10 @@ namespace IDLB
 		DLB_queue(bool, int, int, dlb_domain_hdl_t);
 		~DLB_queue();
 
-		void enqueue(Event *e, dlb_port_hdl_t);
-		void remove(Event *e) {}
+		bool enqueue(Event *e, dlb_port_hdl_t);
+		bool remove(Event *e) { return false; }
 		Event *dequeue_external();
+		bool is_empty() { return false; }
 	};
 
 	/* DLB_queues function */
