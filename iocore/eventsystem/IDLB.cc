@@ -1,12 +1,14 @@
 #include "stdio.h"
 #include <error.h>
 #include <vector>
+#include <mutex>
 #include "P_EventSystem.h"
 
 namespace IDLB
 {
 	/* DLB private variables */
 	static std::vector< DLB_queue*> queues_private;
+	std::mutex dlb_init_mtx;
 
 	#define CQ_DEPTH 128
 
@@ -15,12 +17,18 @@ namespace IDLB
 	**************************************/
 	DLB_queue *get_dlb_queue()
 	{
+		DLB_queue *ptr;
+		dlb_init_mtx.lock();
 		if(!queues_private.size())
 		{
 			printf("Error: There are no free dlb queues\n");
 			exit(1);
 		}
-		return queues_private.back();
+		ptr = queues_private.back();
+		queues_private.pop_back();
+		dlb_init_mtx.unlock();
+
+		return ptr;
 	}
 
 	void push_back_dlb_queue(DLB_queue **q)
@@ -96,7 +104,9 @@ namespace IDLB
 	{
 		dlb_event_t event;
 		const int retry = 10;
+		bool was_empty;
 
+		printf("Enqueue:%d(%d)  %d %p\n", port_tx,tx_port, queue_id, e);
 		/* Initialize the static fields in the send event */
 		event.send.flow_id = 0;
 		event.send.queue_id = queue_id;
@@ -109,13 +119,17 @@ namespace IDLB
 		auto ret = 0;
 		for(int i = 0; i < retry; i++)
 		{
+			was_empty = (bool)(elements_in_queue == 0);
 			ret = dlb_send(port_tx, 1, &event);
 			if(ret == -1)
 				printf("Problem with sending pocket\n");
 			else if(ret)
 				break;
+
+			elements_in_queue += ret;
 		}
-		return false;
+
+		return was_empty;
 	}
 
 	Event *
@@ -124,6 +138,7 @@ namespace IDLB
 		dlb_event_t events;
 		Event *e = nullptr;
 		int ret = 0;
+		static uint32_t ctr = 0;
 
 		ret = dlb_recv(rx_port, 1, false, &events);
 		if(ret == -1 )
@@ -133,9 +148,13 @@ namespace IDLB
 			if(events.recv.error)
 				printf("DLB recive error\n");
 			e = (Event *)events.recv.udata64;
+			elements_in_queue -= ret;
 		}
-		//printf("Dequeue: %p\n", e);
+		else
+			elements_in_queue = 0;
 
+		if(ctr++%100 == 0)
+		printf("dlb: %d %d\n", queue_id, (elements_in_queue== 0));
 		return e;
 	}
 
@@ -170,8 +189,8 @@ namespace IDLB
 		/* prepare resources for this sched domain */
 		if (!cap.combined_credits)
 		{
-                	int max_ldb_credits = 128; //rsrcs.num_ldb_credits * partial_resources / 100;
-                	int max_dir_credits = 128; //rsrcs.num_dir_credits * partial_resources / 100;
+			int max_ldb_credits = rsrcs.num_ldb_credits * partial_resources / 100;
+			int max_dir_credits = rsrcs.num_dir_credits * partial_resources / 100;
 
                 	if (use_max_credit_ldb == true)
                         	ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
@@ -197,7 +216,7 @@ namespace IDLB
                 	if (dir_pool_id == -1)
                         	error(1, errno, "dlb_create_dir_credit_pool");
         	}else{
-                	int max_credits = 128; //rsrcs.num_credits * partial_resources / 100;
+			int max_credits = rsrcs.num_credits * partial_resources / 100;
 
                 	if (use_max_credit_combined == true)
                         	ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
@@ -250,6 +269,7 @@ namespace IDLB
 		while(queues_private.size())
 		{
 			q_ptr = queues_private.back();
+			queues_private.pop_back();
 			delete q_ptr;
 		}
 
@@ -285,8 +305,8 @@ namespace IDLB
     		args.num_dir_ports = 64;
     		args.num_ldb_event_state_entries = 0;
     		if (!cap.combined_credits) {
-        		args.num_ldb_credits = 128; //rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
-        		args.num_dir_credits = 128; //rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
+			args.num_ldb_credits = rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
+			args.num_dir_credits = rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
         		args.num_ldb_credit_pools = 1;
         		args.num_dir_credit_pools = 1;
     		} else {

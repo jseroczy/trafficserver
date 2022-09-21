@@ -2,6 +2,7 @@
 #define IDLB_H
 
 #include <dlb.h>
+#include <atomic>
 #include "I_EventSystem.h"
 
 namespace IDLB
@@ -25,6 +26,7 @@ namespace IDLB
 		int ldb_pool_id;
 		int dir_pool_id;
 		dlb_domain_hdl_t domain_hdl;
+		std::atomic<uint32_t> elements_in_queue = 0;
 
 	public:
 		int get_queue_id() { return queue_id; }
@@ -35,7 +37,7 @@ namespace IDLB
 		bool enqueue(Event *e, dlb_port_hdl_t);
 		bool remove(Event *e) { return false; }
 		Event *dequeue_external();
-		bool is_empty() { return false; }
+		bool is_empty() { return (elements_in_queue == 0); }
 	};
 
 	/* DLB_queues function */
@@ -45,16 +47,16 @@ namespace IDLB
 	/* DLB device */
 	class DLB_device
 	{
-		int device_ID = 1;
+		int device_ID = 2;
 
 		dlb_hdl_t dlb_hdl;
 		int partial_resources = 100;
 		int num_credit_combined;
 		int num_credit_ldb = 128;
 		int num_credit_dir = 128;
-		bool use_max_credit_combined = false;
+		bool use_max_credit_combined = true;
 		bool use_max_credit_ldb = false;
-		bool use_max_credit_dir = false;
+		bool use_max_credit_dir = true;
 
 		dlb_resources_t rsrcs;
 		dlb_dev_cap_t cap;
