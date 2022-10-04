@@ -75,9 +75,13 @@ ProtectedQueue::dequeue_external()
 {
 #ifdef TS_USE_DLB
   Event *e;
-  while((e = dlb_q->dequeue_external()))
+  dlb_q->prepare_dequeue();
+  int elem_recv = dlb_q->get_rx_elem();
+
+  for(int i = 0; i < elem_recv; i++)
   {
-    printf("t: %d q: %d d: %p\n", std::this_thread::get_id(), dlb_q->get_queue_id(), e);
+    e = dlb_q->dequeue_external(i);
+    //JSJS printf("t: %d q: %d d: %p\n", std::this_thread::get_id(), dlb_q->get_queue_id(), e);
     if(!e->cancelled)
       localQueue.enqueue(e);
     else

@@ -54,7 +54,7 @@ namespace IDLB
 		rx_port = add_port(true);
 		/* create tx_port */
 		tx_port = add_port(false);
-
+		elements_in_queue = 0;
 		printf("DEBUG_DLB: DLB queue creation success\n");
 	}
 
@@ -106,7 +106,7 @@ namespace IDLB
 		const int retry = 10;
 		bool was_empty;
 
-		printf("Enqueue:%d(%d)  %d %p\n", port_tx,tx_port, queue_id, e);
+		// JSJS printf("Enqueue:%d(%d)  %d %p\n", port_tx,tx_port, queue_id, e);
 		/* Initialize the static fields in the send event */
 		event.send.flow_id = 0;
 		event.send.queue_id = queue_id;
@@ -121,41 +121,41 @@ namespace IDLB
 		{
 			was_empty = (bool)(elements_in_queue == 0);
 			ret = dlb_send(port_tx, 1, &event);
-			if(ret == -1)
+			if(ret == -1 || ret == 0)
 				printf("Problem with sending pocket\n");
-			else if(ret)
+			else
+			{
+				elements_in_queue += ret;
 				break;
+			}
 
-			elements_in_queue += ret;
 		}
 
 		return was_empty;
 	}
 
-	Event *
-	DLB_queue::dequeue_external()
+	void
+	DLB_queue::prepare_dequeue()
 	{
-		dlb_event_t events;
-		Event *e = nullptr;
 		int ret = 0;
-		static uint32_t ctr = 0;
+		last_nb_elem_rx = 0;
 
-		ret = dlb_recv(rx_port, 1, false, &events);
-		if(ret == -1 )
-			printf("Problem with receiving packets\n");
-		else if(ret > 0)
-		{
-			if(events.recv.error)
-				printf("DLB recive error\n");
-			e = (Event *)events.recv.udata64;
+                ret = dlb_recv(rx_port, 128, false, &events_rx[0]);
+                if(ret == -1 )
+                        printf("Problem with receiving packets\n");
+                else
+                {
+                        //if(events.recv.error)
+                               // printf("DLB recive error\n");
+			last_nb_elem_rx = ret;
 			elements_in_queue -= ret;
-		}
-		else
-			elements_in_queue = 0;
+                }
+	}
 
-		if(ctr++%100 == 0)
-		printf("dlb: %d %d\n", queue_id, (elements_in_queue== 0));
-		return e;
+	Event *
+	DLB_queue::dequeue_external(int num)
+	{
+		return (Event *)events_rx[num].recv.udata64;
 	}
 
 
