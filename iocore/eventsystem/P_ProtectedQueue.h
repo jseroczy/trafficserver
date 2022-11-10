@@ -37,11 +37,27 @@ ProtectedQueue::ProtectedQueue()
   Event e;
   ink_mutex_init(&lock);
 #ifdef TS_USE_DLB
-  dlb_q = IDLB::get_dlb_queue();
+    dlb_q = nullptr;
+    dlb_port = NULL;
 #else
   ink_atomiclist_init(&al, "ProtectedQueue", (char *)&e.link.next - (char *)&e);
 #endif
   ink_cond_init(&might_have_data);
+}
+
+TS_INLINE void
+ProtectedQueue::init_queue()
+{
+  printf("Get dlb queue\t");
+  dlb_q = IDLB::get_dlb_queue();
+  printf("\tQueue id: %d\n", dlb_q->get_queue_id());
+}
+
+TS_INLINE void
+ProtectedQueue::port_init()
+{
+  dlb_port = IDLB::get_tx_port();
+  printf("\tport: %d\n", dlb_port);
 }
 
 TS_INLINE

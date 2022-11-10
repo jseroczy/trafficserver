@@ -54,7 +54,10 @@ struct ProtectedQueue {
   void wait(ink_hrtime timeout); // Wait for @a timeout nanoseconds on a condition variable if there are no events.
 
 #ifdef TS_USE_DLB
-  IDLB::DLB_queue *dlb_q;
+  IDLB::DLB_queue *dlb_q = nullptr;
+  dlb_port_hdl_t dlb_port = NULL;
+  void init_queue();
+  void port_init();
 #else
   InkAtomicList al;
 #endif

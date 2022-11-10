@@ -51,6 +51,7 @@ EventProcessor::allocate(int size)
 TS_INLINE EThread *
 EventProcessor::assign_thread(EventType etype)
 {
+  //printf("assing_thread\t");
   int next;
   ThreadGroupDescriptor *tg = &thread_group[etype];
 
@@ -96,7 +97,6 @@ EventProcessor::schedule(Event *e, EventType etype)
   if (TSSystemState::is_event_system_shut_down()) {
     return nullptr;
   }
-
   EThread *affinity_thread = e->continuation->getThreadAffinity();
   EThread *curr_thread     = this_ethread();
   if (affinity_thread != nullptr && affinity_thread->is_event_type(etype)) {
@@ -121,7 +121,10 @@ EventProcessor::schedule(Event *e, EventType etype)
     e->ethread->EventQueueExternal.enqueue_local(e);
   } else {
 #ifdef TS_USE_DLB
-    e->ethread->EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_q->get_port());
+    //curr_thread->EventQueueExternal.dlb_q->wr itten_to[e->ethread->EventQueueExternal.dlb_q->get_queue_id()]++;
+    printf("!!! EventProcessor enqueue\n");
+    if(curr_thread->EventQueueExternal.dlb_port == NULL)curr_thread->EventQueueExternal.port_init();
+    e->ethread->EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_port);
 #else
     e->ethread->EventQueueExternal.enqueue(e);
 #endif

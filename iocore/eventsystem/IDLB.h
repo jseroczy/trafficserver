@@ -8,18 +8,16 @@
 namespace IDLB
 {
 
+	constexpr static auto CQ_DEPTH  = 128;
 
 	/* DLB queue class */
 	class DLB_queue
 	{
 		int queue_id;
 
-		/* port for reading is usin only for this queue */
+		/* port for rx is using only for this queue */
 		dlb_port_hdl_t rx_port;
-		/* port for writing using to write for every queue in domain */
-		dlb_port_hdl_t tx_port;
-
-        	dlb_port_hdl_t add_port(bool);
+        dlb_port_hdl_t add_port_rx(bool);
 
 		/* constructor variables */
 		bool combined_credits;
@@ -28,12 +26,12 @@ namespace IDLB
 		dlb_domain_hdl_t domain_hdl;
 		std::atomic<uint32_t> elements_in_queue;
 
-		dlb_event_t events_rx[128];
-                int last_nb_elem_rx;
+		dlb_event_t events_rx[CQ_DEPTH];
+		int last_nb_elem_rx;
 
 	public:
 		int get_queue_id() { return queue_id; }
-		dlb_port_hdl_t get_port() { return tx_port; }
+
 		DLB_queue(bool, int, int, dlb_domain_hdl_t);
 		~DLB_queue();
 
@@ -42,13 +40,13 @@ namespace IDLB
 		Event *dequeue_external(int);
 		void prepare_dequeue();
 		int get_rx_elem() { return last_nb_elem_rx; }
-		bool is_empty() { 
-					//JSJS if(elements_in_queue != 0) printf("queue id = %d Error 2!\n", queue_id);
-				return (elements_in_queue == 0); }
+		bool is_empty() { return (elements_in_queue == 0); }
 	};
 
 	/* DLB_queues function */
 	DLB_queue *get_dlb_queue();
+	dlb_port_hdl_t get_tx_port();
+
 	void push_back_dlb_queue(DLB_queue **q);
 
 	/* DLB device */
@@ -68,19 +66,17 @@ namespace IDLB
 		dlb_resources_t rsrcs;
 		dlb_dev_cap_t cap;
 
+		/* schedular domain id */
+		int domain_id;
+		/* schedulare domain handler */
+		dlb_domain_hdl_t domain;
+ 		int ldb_pool_id;
+ 		int dir_pool_id;
+ 		int  create_sched_domain();
+		void start_sched();
 
-     		/* schedular domain id */
-        	int domain_id;
-        	/* schedulare domain handler */
-        	dlb_domain_hdl_t domain;
-        	int ldb_pool_id;
-        	int dir_pool_id;
-        	int  create_sched_domain();
-        	void start_sched();
-		int queue_prog_id;
-
-		dlb_port_hdl_t add_port_rx(int);
-		dlb_port_hdl_t add_port_tx();
+		dlb_port_hdl_t add_ldb_port_tx();
+		dlb_port_hdl_t add_dir_port_tx();
 
 	public:
 		void print_resources();

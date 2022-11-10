@@ -370,7 +370,6 @@ EventProcessor::spawn_event_threads(EventType ev_type, int n_threads, size_t sta
   }
 
   Debug("iocore_thread", "Thread stack size set to %zu", stacksize);
-
   for (i = 0; i < n_threads; ++i) {
     EThread *t                   = new EThread(REGULAR, n_ethreads + i);
     all_ethreads[n_ethreads + i] = t;

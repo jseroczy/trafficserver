@@ -50,7 +50,8 @@ ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
 ProtectedQueue::enqueue(Event *e)
 #endif
 {
-  //printf("Enqueue: %p\n", e);
+  if(port == NULL) printf("port Error, queue_it_to: %d\n", dlb_q->get_queue_id());
+  if(dlb_q == nullptr) printf("Queue error\n");
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;
@@ -74,14 +75,16 @@ void
 ProtectedQueue::dequeue_external()
 {
 #ifdef TS_USE_DLB
+  if(dlb_q == nullptr) printf("Error queue dequeue");
   Event *e;
   dlb_q->prepare_dequeue();
   int elem_recv = dlb_q->get_rx_elem();
 
+  //if(elem_recv > 10) printf("dequeue %d : %d\n", dlb_q->get_queue_id(), elem_recv);
+  //else if(elem_recv) printf("%d:%d   ", dlb_q->get_queue_id(), elem_recv);
   for(int i = 0; i < elem_recv; i++)
   {
     e = dlb_q->dequeue_external(i);
-    //JSJS printf("t: %d q: %d d: %p\n", std::this_thread::get_id(), dlb_q->get_queue_id(), e);
     if(!e->cancelled)
       localQueue.enqueue(e);
     else
