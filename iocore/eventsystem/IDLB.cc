@@ -181,12 +181,12 @@ namespace IDLB
 			ret = dlb_send(port_tx, 1, &event);
 			if(ret == -1)
 			{
-				printf("Problem with sending packet port: %d\n", port_tx);
+				printf("Problem with sending packet port: %p\n", port_tx);
 				break;
 			}
 			else if(ret == 0 && i == 9)
 				printf("Queue  full\n");
-			else
+			else if(ret)
 			{
 				elements_in_queue += ret;
 				break;
@@ -197,28 +197,22 @@ namespace IDLB
 		return was_empty;
 	}
 
-	void
-	DLB_queue::prepare_dequeue()
+	Event *
+	DLB_queue::dequeue_external()
 	{
 		int ret = 0;
-		last_nb_elem_rx = 0;
+		dlb_event_t event_dlb;
+		Event *event_rx = nullptr;
 
-		ret = dlb_recv(rx_port, CQ_DEPTH, false, &events_rx[0]);
+		ret = dlb_recv(rx_port, 1, false, &event_dlb);
 		if(ret == -1 )
 			printf("Problem with receiving packets\n");
-		else
+		else if(ret)
 		{
-			//if(events.recv.error)
-			// printf("DLB recive error\n");
-			last_nb_elem_rx = ret;
 			elements_in_queue -= ret;
+			event_rx = (Event *)event_dlb.recv.udata64;
 		}
-	}
-
-	Event *
-	DLB_queue::dequeue_external(int num)
-	{
-		return (Event *)events_rx[num].recv.udata64;
+		return event_rx;
 	}
 
 
@@ -230,7 +224,6 @@ namespace IDLB
 		/* Open DLB device */
 		if (dlb_open(device_ID, &dlb_hdl) == -1)
 			error(1, errno, "dlb_open");
-		//printf("DEBUG_DLB: DLB device sacesfully opened, ID = %d\n", device_ID);
 
 		/* get DLB device capabilietes */
 		if (dlb_get_dev_capabilities(dlb_hdl, &cap))
@@ -256,7 +249,7 @@ namespace IDLB
 			int max_dir_credits = rsrcs.num_dir_credits * partial_resources / 100;
 
 			if (use_max_credit_ldb == true)
-			ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
+				ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
 			else
 				if (num_credit_ldb <= max_ldb_credits)
 					ldb_pool_id = dlb_create_ldb_credit_pool(domain,
@@ -303,33 +296,10 @@ namespace IDLB
 		/* create tx_ports */
 		for(uint32_t i = 0; i < rsrcs.num_ldb_ports; i++)
 			tx_ports.push_back(add_ldb_port_tx());
-		for(uint32_t i = 0; i < 0; i++)
-			tx_ports.push_back(add_dir_port_tx());
 		
 		/* start scheduler */
 		start_sched();
 	}
-
-	DLB_device::DLB_device(int device_id)
-	{
-		device_ID = device_id;
-
-		/* Open DLB device */
-		if (dlb_open(device_ID, &dlb_hdl) == -1)
-			error(1, errno, "dlb_open");
-		//printf("DEBUG_DLB: DLB device sacesfully opened, ID = %d\n", device_ID);
-
-		/* get DLB device capabilietes */
-		if (dlb_get_dev_capabilities(dlb_hdl, &cap))
-			error(1, errno, "dlb_get_dev_capabilities");
-
-		/* Get DLB device resources information */
-		if (dlb_get_num_resources(dlb_hdl, &rsrcs))
-			error(1, errno, "dlb_get_num_resources");
-
-		//printf("DEBUG_DLB: Succesfully create DLB device class object\n");
-	}
-
 
 	DLB_device::~DLB_device()
 	{
@@ -388,29 +358,4 @@ namespace IDLB
     		return dlb_create_sched_domain(dlb_hdl, &args);
 	}
 
-	void DLB_device::print_resources()
-	{
-		printf("DLB's available resources:\n");
-		printf("\tDomains:           %d\n", rsrcs.num_sched_domains);
-		printf("\tLDB queues:        %d\n", rsrcs.num_ldb_queues);
-		printf("\tLDB ports:         %d\n", rsrcs.num_ldb_ports);
-		printf("\tDIR ports:         %d\n", rsrcs.num_dir_ports);
-		printf("\tSN slots:          %d,%d\n", rsrcs.num_sn_slots[0],
-			rsrcs.num_sn_slots[1]);
-		printf("\tES entries:        %d\n", rsrcs.num_ldb_event_state_entries);
-		printf("\tContig ES entries: %d\n",
-			rsrcs.max_contiguous_ldb_event_state_entries);
-		if (!cap.combined_credits) {
-			printf("\tLDB credits:       %d\n", rsrcs.num_ldb_credits);
-			printf("\tContig LDB cred:   %d\n", rsrcs.max_contiguous_ldb_credits);
-			printf("\tDIR credits:       %d\n", rsrcs.num_dir_credits);
-			printf("\tContig DIR cred:   %d\n", rsrcs.max_contiguous_dir_credits);
-			printf("\tLDB credit pls:    %d\n", rsrcs.num_ldb_credit_pools);
-			printf("\tDIR credit pls:    %d\n", rsrcs.num_dir_credit_pools);
-		} else {
-			printf("\tCredits:           %d\n", rsrcs.num_credits);
-			printf("\tCredit pools:      %d\n", rsrcs.num_credit_pools);
-		}
-		printf("\n");
-	}
 }

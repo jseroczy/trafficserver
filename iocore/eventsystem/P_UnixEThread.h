@@ -40,7 +40,6 @@ TS_INLINE Event *
 EThread::schedule_imm(Continuation *cont, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
-  printf("EThread::schedule_imm\t");
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -54,7 +53,6 @@ TS_INLINE Event *
 EThread::schedule_at(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
-  printf("EThread::schedule_at\t");
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -68,7 +66,6 @@ TS_INLINE Event *
 EThread::schedule_in(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
-  printf("EThread::schedule_in\t");
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -82,7 +79,6 @@ TS_INLINE Event *
 EThread::schedule_every(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
-  printf("EThread::schedule_every\t");
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -101,7 +97,6 @@ EThread::schedule(Event *e)
 {
   e->ethread = this;
   if (tt != REGULAR) {
-    printf("Enter there\t");
     ink_assert(tt == DEDICATED);
     return eventProcessor.schedule(e, ET_CALL);
   }
@@ -122,9 +117,6 @@ EThread::schedule(Event *e)
     EventQueueExternal.enqueue_local(e);
   } else {
 #ifdef TS_USE_DLB
-    //curr_thread->EventQueueExternal.dlb_q->written_to[e->ethread->EventQueueExternal.dlb_q->get_queue_id()]++;
-    //if(curr_thread->EventQueueExternal.dlb_port == NULL)
-    printf("enqueue\n");
     if(curr_thread->EventQueueExternal.dlb_port == NULL)curr_thread->EventQueueExternal.port_init();
     EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_port);
 #else

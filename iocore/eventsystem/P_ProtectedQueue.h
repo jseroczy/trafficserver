@@ -50,14 +50,12 @@ ProtectedQueue::init_queue()
 {
   printf("Get dlb queue\t");
   dlb_q = IDLB::get_dlb_queue();
-  printf("\tQueue id: %d\n", dlb_q->get_queue_id());
 }
 
 TS_INLINE void
 ProtectedQueue::port_init()
 {
   dlb_port = IDLB::get_tx_port();
-  printf("\tport: %d\n", dlb_port);
 }
 
 TS_INLINE
@@ -102,15 +100,13 @@ ProtectedQueue::enqueue_local(Event *e)
 TS_INLINE void
 ProtectedQueue::remove(Event *e)
 {
+  #ifndef TS_USE_DLB
   ink_assert(e->in_the_prot_queue);
-#ifdef TS_USE_DLB
-  if(dlb_q->remove(e)) {
-#else
   if (!ink_atomiclist_remove(&al, e)) {
-#endif
     localQueue.remove(e);
   }
   e->in_the_prot_queue = 0;
+  #endif
 }
 
 TS_INLINE Event *

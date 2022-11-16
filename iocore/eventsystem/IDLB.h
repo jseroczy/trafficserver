@@ -24,10 +24,7 @@ namespace IDLB
 		int ldb_pool_id;
 		int dir_pool_id;
 		dlb_domain_hdl_t domain_hdl;
-		std::atomic<uint32_t> elements_in_queue;
-
-		dlb_event_t events_rx[CQ_DEPTH];
-		int last_nb_elem_rx;
+		std::atomic<uint32_t> elements_in_queue{};
 
 	public:
 		int get_queue_id() { return queue_id; }
@@ -36,10 +33,7 @@ namespace IDLB
 		~DLB_queue();
 
 		bool enqueue(Event *e, dlb_port_hdl_t);
-		bool remove(Event *e) { return false; }
-		Event *dequeue_external(int);
-		void prepare_dequeue();
-		int get_rx_elem() { return last_nb_elem_rx; }
+		Event *dequeue_external();
 		bool is_empty() { return (elements_in_queue == 0); }
 	};
 
@@ -52,7 +46,7 @@ namespace IDLB
 	/* DLB device */
 	class DLB_device
 	{
-		int device_ID = 1;
+		const int device_ID = 1;
 
 		dlb_hdl_t dlb_hdl;
 		int partial_resources = 100;
@@ -79,9 +73,7 @@ namespace IDLB
 		dlb_port_hdl_t add_dir_port_tx();
 
 	public:
-		void print_resources();
 		DLB_device();
-		DLB_device(int);
 		~DLB_device();
 	};
 

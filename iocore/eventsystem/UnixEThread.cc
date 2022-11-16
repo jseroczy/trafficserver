@@ -73,16 +73,13 @@ EThread::set_specific()
 
 EThread::EThread()
 {
-  printf("EThread constructor 1\n");
   memset(thread_private, 0, PER_THREAD_DATA);
   EventQueueExternal.init_queue();
   EventQueueExternal.port_init();
-
 }
 
 EThread::EThread(ThreadType att, int anid) : id(anid), tt(att)
 {
-  printf("Thread constructor 2\t");
   EventQueueExternal.init_queue();
   memset(thread_private, 0, PER_THREAD_DATA);
 #if HAVE_EVENTFD
@@ -112,7 +109,6 @@ EThread::EThread(ThreadType att, int anid) : id(anid), tt(att)
 
 EThread::EThread(ThreadType att, Event *e) : tt(att), start_event(e)
 {
-  printf("EThread 3 constructor\t");
   EventQueueExternal.port_init();
   ink_assert(att == DEDICATED);
   memset(thread_private, 0, PER_THREAD_DATA);
@@ -122,7 +118,6 @@ EThread::EThread(ThreadType att, Event *e) : tt(att), start_event(e)
 // threads won't have to deal with EThread memory deallocation.
 EThread::~EThread()
 {
-  printf("EThread destructor\n");
   ink_release_assert(mutex->thread_holding == static_cast<EThread *>(this));
   if (this_ethread_ptr == this) {
     this_ethread_ptr = nullptr;

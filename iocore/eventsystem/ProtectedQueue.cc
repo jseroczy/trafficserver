@@ -31,7 +31,7 @@
 */
 
 #include "P_EventSystem.h"
-#include <thread>
+
 // The protected queue is designed to delay signaling of threads
 // until some amount of work has been completed on the current thread
 // in order to prevent excess context switches.
@@ -77,14 +77,10 @@ ProtectedQueue::dequeue_external()
 #ifdef TS_USE_DLB
   if(dlb_q == nullptr) printf("Error queue dequeue");
   Event *e;
-  dlb_q->prepare_dequeue();
-  int elem_recv = dlb_q->get_rx_elem();
 
-  //if(elem_recv > 10) printf("dequeue %d : %d\n", dlb_q->get_queue_id(), elem_recv);
-  //else if(elem_recv) printf("%d:%d   ", dlb_q->get_queue_id(), elem_recv);
-  for(int i = 0; i < elem_recv; i++)
+  while((e = dlb_q-> dequeue_external()))
   {
-    e = dlb_q->dequeue_external(i);
+
     if(!e->cancelled)
       localQueue.enqueue(e);
     else

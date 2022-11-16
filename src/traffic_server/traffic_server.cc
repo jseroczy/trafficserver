@@ -1850,9 +1850,6 @@ main(int /* argc ATS_UNUSED */, const char **argv)
 
 #ifdef TS_USE_DLB
   IDLB::DLB_device dlb_dev1;
-  //IDLB::DLB_device dlb_dev2(2);
-  //IDLB::DLB_device dlb_dev3(3);
-  //DLB_device dlb_dev4;
 #endif
 
   // This call is required for win_9xMe
