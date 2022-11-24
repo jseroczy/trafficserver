@@ -44,18 +44,20 @@
 extern ClassAllocator<Event> eventAllocator;
 
 void
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
 ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
 #else
 ProtectedQueue::enqueue(Event *e)
 #endif
 {
+#if TS_USE_DLB
   if(port == NULL) printf("port Error, queue_it_to: %d\n", dlb_q->get_queue_id());
   if(dlb_q == nullptr) printf("Queue error\n");
+#endif
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
   bool was_empty = dlb_q->enqueue(e, port);
 #else
   bool was_empty       = (ink_atomiclist_push(&al, e) == nullptr);
@@ -74,7 +76,7 @@ ProtectedQueue::enqueue(Event *e)
 void
 ProtectedQueue::dequeue_external()
 {
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
   if(dlb_q == nullptr) {
     printf("Error queue dequeue");
     exit(1);
@@ -121,7 +123,7 @@ ProtectedQueue::wait(ink_hrtime timeout)
    *   - And then the Event Thread goes to sleep and waits for the wakeup signal of `EThread::might_have_data`,
    *   - The `EThread::lock` will be locked again when the Event Thread wakes up.
    */
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
   if(dlb_q->is_empty() && localQueue.empty()) {
 #else
   if (INK_ATOMICLIST_EMPTY(al) && localQueue.empty()) {

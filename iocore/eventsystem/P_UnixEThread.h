@@ -116,7 +116,7 @@ EThread::schedule(Event *e)
   if (e->ethread == curr_thread) {
     EventQueueExternal.enqueue_local(e);
   } else {
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
     if(curr_thread->EventQueueExternal.dlb_port.empty())curr_thread->EventQueueExternal.port_init();
     EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_port[EventQueueExternal.dlb_q->get_dlb_id()]);
 #else

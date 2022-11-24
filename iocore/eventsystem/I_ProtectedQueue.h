@@ -36,11 +36,11 @@
 
 #include "tscore/ink_platform.h"
 #include "I_Event.h"
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
 #include "IDLB.h"
 #endif
 struct ProtectedQueue {
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
   void enqueue(Event *e, dlb_port_hdl_t port);
 #else
   void enqueue(Event *e);
@@ -53,7 +53,7 @@ struct ProtectedQueue {
   void dequeue_external();       // Dequeue any external events.
   void wait(ink_hrtime timeout); // Wait for @a timeout nanoseconds on a condition variable if there are no events.
 
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
   IDLB::DLB_queue *dlb_q = nullptr;
   std::vector<dlb_port_hdl_t> dlb_port; // we need ports special port to write on specyfic DLB dev queue
   void init_queue();

@@ -44,7 +44,7 @@
 #include "I_VConnection.h"
 #include "records/I_RecProcess.h"
 #include "I_SocketManager.h"
-#ifdef TS_USE_DLB
+#if TS_USE_DLB
 #include "IDLB.h"
 #endif
 

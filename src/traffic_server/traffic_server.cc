@@ -117,10 +117,6 @@ extern "C" int plock(int);
 #include <gperftools/heap-profiler.h>
 #endif
 
-#if TS_ENABLE_DLB
-#include "iocore/eventsystem/IDLB.h"
-#endif
-
 //
 // Global Data
 //
@@ -1848,8 +1844,9 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // Can't generate a log message yet, do that right after Diags is
   // setup.
 
-#ifdef TS_USE_DLB
-  IDLB::DLB_device dlb_dev1;
+#if TS_USE_DLB
+  IDLB::DLB_device dlb_dev0(0);
+  IDLB::DLB_device dlb_dev1(1);
 #endif
 
   // This call is required for win_9xMe

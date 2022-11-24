@@ -74,13 +74,17 @@ EThread::set_specific()
 EThread::EThread()
 {
   memset(thread_private, 0, PER_THREAD_DATA);
+#if TS_USE_DLB
   EventQueueExternal.init_queue();
   EventQueueExternal.port_init();
+#endif
 }
 
 EThread::EThread(ThreadType att, int anid) : id(anid), tt(att)
 {
+#if TS_USE_DLB
   EventQueueExternal.init_queue();
+#endif
   memset(thread_private, 0, PER_THREAD_DATA);
 #if HAVE_EVENTFD
   evfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
@@ -109,7 +113,9 @@ EThread::EThread(ThreadType att, int anid) : id(anid), tt(att)
 
 EThread::EThread(ThreadType att, Event *e) : tt(att), start_event(e)
 {
+#if TS_USE_DLB
   EventQueueExternal.port_init();
+#endif
   ink_assert(att == DEDICATED);
   memset(thread_private, 0, PER_THREAD_DATA);
 }
