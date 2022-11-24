@@ -424,6 +424,7 @@ EventProcessor::initThreadState(EThread *t)
 int
 EventProcessor::start(int n_event_threads, size_t stacksize)
 {
+  printf("EventProcessor::start %d\n", n_event_threads);
   // do some sanity checking.
   static bool started = false;
   ink_release_assert(!started);

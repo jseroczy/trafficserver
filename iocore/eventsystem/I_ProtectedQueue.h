@@ -55,7 +55,7 @@ struct ProtectedQueue {
 
 #ifdef TS_USE_DLB
   IDLB::DLB_queue *dlb_q = nullptr;
-  dlb_port_hdl_t dlb_port = NULL;
+  std::vector<dlb_port_hdl_t> dlb_port; // we need ports special port to write on specyfic DLB dev queue
   void init_queue();
   void port_init();
 #else

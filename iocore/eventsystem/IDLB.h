@@ -8,16 +8,16 @@
 namespace IDLB
 {
 
-	constexpr static auto CQ_DEPTH  = 128;
+	constexpr static auto CQ_DEPTH  = 256;
 
 	/* DLB queue class */
 	class DLB_queue
 	{
 		int queue_id;
-
+		int dlb_id;
 		/* port for rx is using only for this queue */
 		dlb_port_hdl_t rx_port;
-        dlb_port_hdl_t add_port_rx(bool);
+        dlb_port_hdl_t add_port_rx();
 
 		/* constructor variables */
 		bool combined_credits;
@@ -28,8 +28,9 @@ namespace IDLB
 
 	public:
 		int get_queue_id() { return queue_id; }
+		int get_dlb_id() { return dlb_id; }
 
-		DLB_queue(bool, int, int, dlb_domain_hdl_t);
+		DLB_queue(bool, int, int, dlb_domain_hdl_t, int);
 		~DLB_queue();
 
 		bool enqueue(Event *e, dlb_port_hdl_t);
@@ -39,14 +40,14 @@ namespace IDLB
 
 	/* DLB_queues function */
 	DLB_queue *get_dlb_queue();
-	dlb_port_hdl_t get_tx_port();
+	dlb_port_hdl_t get_tx_port(int dlb_n);
 
 	void push_back_dlb_queue(DLB_queue **q);
 
 	/* DLB device */
 	class DLB_device
 	{
-		const int device_ID = 1;
+		int device_ID;
 
 		dlb_hdl_t dlb_hdl;
 		int partial_resources = 100;
@@ -54,15 +55,13 @@ namespace IDLB
 		int num_credit_ldb = 128;
 		int num_credit_dir = 128;
 		bool use_max_credit_combined = true;
-		bool use_max_credit_ldb = false;
+		bool use_max_credit_ldb = true;
 		bool use_max_credit_dir = true;
 
 		dlb_resources_t rsrcs;
 		dlb_dev_cap_t cap;
 
-		/* schedular domain id */
 		int domain_id;
-		/* schedulare domain handler */
 		dlb_domain_hdl_t domain;
  		int ldb_pool_id;
  		int dir_pool_id;
@@ -73,10 +72,10 @@ namespace IDLB
 		dlb_port_hdl_t add_dir_port_tx();
 
 	public:
-		DLB_device();
+		static int dlb_dev_ctr;
+		DLB_device(int);
 		~DLB_device();
 	};
-
 }
 
 #endif /* define IDLB_H */

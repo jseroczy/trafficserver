@@ -121,8 +121,8 @@ EventProcessor::schedule(Event *e, EventType etype)
     e->ethread->EventQueueExternal.enqueue_local(e);
   } else {
 #ifdef TS_USE_DLB
-    if(curr_thread->EventQueueExternal.dlb_port == NULL)curr_thread->EventQueueExternal.port_init();
-    e->ethread->EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_port);
+    if((curr_thread->EventQueueExternal.dlb_port.empty()))curr_thread->EventQueueExternal.port_init();
+    e->ethread->EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_port[e->ethread->EventQueueExternal.dlb_q->get_dlb_id()]);
 #else
     e->ethread->EventQueueExternal.enqueue(e);
 #endif

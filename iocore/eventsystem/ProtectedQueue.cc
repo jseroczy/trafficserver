@@ -75,7 +75,10 @@ void
 ProtectedQueue::dequeue_external()
 {
 #ifdef TS_USE_DLB
-  if(dlb_q == nullptr) printf("Error queue dequeue");
+  if(dlb_q == nullptr) {
+    printf("Error queue dequeue");
+    exit(1);
+  }
   Event *e;
 
   while((e = dlb_q-> dequeue_external()))

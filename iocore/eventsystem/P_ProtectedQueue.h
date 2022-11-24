@@ -38,7 +38,6 @@ ProtectedQueue::ProtectedQueue()
   ink_mutex_init(&lock);
 #ifdef TS_USE_DLB
     dlb_q = nullptr;
-    dlb_port = NULL;
 #else
   ink_atomiclist_init(&al, "ProtectedQueue", (char *)&e.link.next - (char *)&e);
 #endif
@@ -55,7 +54,8 @@ ProtectedQueue::init_queue()
 TS_INLINE void
 ProtectedQueue::port_init()
 {
-  dlb_port = IDLB::get_tx_port();
+  for(auto i = 0; i < IDLB::DLB_device::dlb_dev_ctr; i++)
+    dlb_port.push_back(IDLB::get_tx_port(i));
 }
 
 TS_INLINE
