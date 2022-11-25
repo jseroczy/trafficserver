@@ -4,11 +4,14 @@
 #include <dlb.h>
 #include <atomic>
 #include "I_EventSystem.h"
+#include <iostream>
+#include <mutex>
 
 namespace IDLB
 {
 
 	constexpr static auto CQ_DEPTH  = 256;
+	static std::mutex dlb_sin_m;
 
 	/* DLB queue class */
 	class DLB_queue
@@ -37,12 +40,6 @@ namespace IDLB
 		Event *dequeue_external();
 		bool is_empty() { return (elements_in_queue == 0); }
 	};
-
-	/* DLB_queues function */
-	DLB_queue *get_dlb_queue();
-	dlb_port_hdl_t get_tx_port(int dlb_n);
-
-	void push_back_dlb_queue(DLB_queue **q);
 
 	/* DLB device */
 	class DLB_device
@@ -76,6 +73,42 @@ namespace IDLB
 		DLB_device(int);
 		~DLB_device();
 	};
+
+	/* Singleton */
+	class DLB_Singleton
+	{
+		static DLB_Singleton * _instance;
+		DLB_Singleton()
+		{
+			std::cout << "Singleton DLB class constuctor called" << std::endl;
+			DLB_device *dlb_dev0 = new DLB_device(0);
+			DLB_device *dlb_dev1 = new DLB_device(1);
+		}
+
+	public:
+		static DLB_Singleton * getInstance()
+		{
+			dlb_sin_m.lock();
+			std::cout << "Enter singleton" << std::endl;
+			if(_instance == nullptr)
+			{
+				std::cout << "nullptr " << std::endl;
+				_instance = new DLB_Singleton;
+			}
+			else
+				std::cout << "not nullptr" << std::endl;
+			dlb_sin_m.unlock();
+			return _instance;
+		}
+
+		/* DLB_queues function */
+        DLB_queue *get_dlb_queue();
+        dlb_port_hdl_t get_tx_port(int dlb_n);
+        void push_back_dlb_queue(DLB_queue **q);
+	};
+
+        extern std::vector< DLB_queue*> queues_private;
+        extern std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
 }
 
 #endif /* define IDLB_H */

@@ -6,9 +6,10 @@
 
 namespace IDLB
 {
-	/* DLB private variables */
-	static std::vector< DLB_queue*> queues_private;
-	static std::vector<std::vector<dlb_port_hdl_t>>tx_ports;
+	DLB_Singleton* DLB_Singleton::_instance = nullptr;
+	std::vector< DLB_queue*> queues_private;
+	std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
+
 	std::mutex dlb_init_mtx;
 	std::mutex tx_port_mtx;
 	int DLB_device::dlb_dev_ctr = 0;
@@ -16,9 +17,9 @@ namespace IDLB
 	/*************************************
 	*External functions to use dlb queues
 	**************************************/
-	DLB_queue *get_dlb_queue()
+	DLB_queue* DLB_Singleton::get_dlb_queue()
 	{
-		DLB_queue *ptr;
+		DLB_queue *ptr = nullptr;
 		dlb_init_mtx.lock();
 		if(queues_private.empty())
 		{
@@ -36,23 +37,26 @@ namespace IDLB
 	/*************************************
 	*External functions to use tx port
 	**************************************/
-	dlb_port_hdl_t get_tx_port(int dlb_n)
+	dlb_port_hdl_t DLB_Singleton::get_tx_port(int dlb_n)
 	{
+		std::cout << "Try to get port" << std::endl;
 		dlb_port_hdl_t port;
 		tx_port_mtx.lock();
-		if(tx_ports[dlb_n].empty())
+		printf("%p\n", tx_dlb_ports.data());
+		if(tx_dlb_ports.empty() || tx_dlb_ports[dlb_n].empty())
 		{
 			printf("Error: There are no free tx ports\n");
 			exit(1);
 		}
-		port = tx_ports[dlb_n].back();
-		tx_ports[dlb_n].pop_back();
+		port = tx_dlb_ports[dlb_n].back();
+		tx_dlb_ports[dlb_n].pop_back();
 		tx_port_mtx.unlock();
 
+		std::cout << "Got tx port" << std::endl;
 		return port;
 	}
 
-	void push_back_dlb_queue(DLB_queue **q)
+	void DLB_Singleton::push_back_dlb_queue(DLB_queue **q)
 	{
 		queues_private.push_back(*q);
 		*q = nullptr;
@@ -60,6 +64,7 @@ namespace IDLB
 
 	dlb_port_hdl_t DLB_device::add_ldb_port_tx()
 	{
+		std::cout << "Add tx port " << std::endl;
 		dlb_create_port_t args;
 
 		if (!cap.combined_credits) {
@@ -97,7 +102,7 @@ namespace IDLB
 
 		args.cq_depth = CQ_DEPTH;
 
-		// Create port 
+		// Create port
 		int port_id;
 		port_id = dlb_create_dir_port(domain, &args, -1);
 		if (port_id == -1)
@@ -289,7 +294,12 @@ namespace IDLB
 		std::vector<dlb_port_hdl_t>v_ports;
 		for(uint32_t i = 0; i < rsrcs.num_ldb_ports; i++)
 			v_ports.push_back(add_ldb_port_tx());
-		tx_ports.push_back(v_ports);
+                tx_port_mtx.lock();
+		tx_dlb_ports.push_back(v_ports);
+		                tx_port_mtx.unlock();
+		std::cout << "tx_ports" << tx_dlb_ports.size() << std::endl;
+		std::cout << "v_ports" << v_ports.size() << std::endl;
+                printf("%p\n", tx_dlb_ports.data());
 
 		start_sched();
 		dlb_dev_ctr++;
