@@ -49,14 +49,15 @@ TS_INLINE void
 ProtectedQueue::init_queue()
 {
   printf("Get dlb queue\t");
-  dlb_q = IDLB::get_dlb_queue();
+  dlb_q = IDLB::DLB_Singleton::getInstance()->get_dlb_queue();
 }
 
 TS_INLINE void
 ProtectedQueue::port_init()
 {
-  for(auto i = 0; i < IDLB::DLB_device::dlb_dev_ctr; i++)
-    dlb_port.push_back(IDLB::get_tx_port(i));
+  IDLB::DLB_Singleton * dlb_instance = IDLB::DLB_Singleton::getInstance();
+  for(auto i = 0; i < dlb_instance->dlb_dev_num(); i++)
+    dlb_port.push_back(dlb_instance->get_tx_port(i));
 }
 #endif
 
@@ -64,7 +65,7 @@ TS_INLINE
 ProtectedQueue::~ProtectedQueue()
 {
 #if TS_USE_DLB
-	IDLB::push_back_dlb_queue(&dlb_q);
+	//IDLB::push_back_dlb_queue(&dlb_q);
 #endif
 }
 

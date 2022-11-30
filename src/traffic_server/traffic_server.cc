@@ -1844,11 +1844,6 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // Can't generate a log message yet, do that right after Diags is
   // setup.
 
-#if TS_USE_DLB
-  IDLB::DLB_device dlb_dev0(0);
-  IDLB::DLB_device dlb_dev1(1);
-#endif
-
   // This call is required for win_9xMe
   // without this this_ethread() is failing when
   // start_HttpProxyServer is called from main thread

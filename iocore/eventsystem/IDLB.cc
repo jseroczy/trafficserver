@@ -6,20 +6,16 @@
 
 namespace IDLB
 {
-	/* DLB private variables */
+	DLB_Singleton* DLB_Singleton::_instance = nullptr;
 	static std::vector< DLB_queue*> queues_private;
-	static std::vector<std::vector<dlb_port_hdl_t>>tx_ports;
-	std::mutex dlb_init_mtx;
-	std::mutex tx_port_mtx;
-	int DLB_device::dlb_dev_ctr = 0;
+	static std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
 
 	/*************************************
-	*External functions to use dlb queues
+	*DLB_Singleton methods
 	**************************************/
-	DLB_queue *get_dlb_queue()
+	DLB_queue* DLB_Singleton::get_dlb_queue()
 	{
-		DLB_queue *ptr;
-		dlb_init_mtx.lock();
+		DLB_queue *ptr = nullptr;
 		if(queues_private.empty())
 		{
 			printf("Error: There are no free dlb queues\n");
@@ -27,87 +23,30 @@ namespace IDLB
 		}
 		ptr = queues_private.back();
 		queues_private.pop_back();
-		dlb_init_mtx.unlock();
 		printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
 
 		return ptr;
 	}
 
-	/*************************************
-	*External functions to use tx port
-	**************************************/
-	dlb_port_hdl_t get_tx_port(int dlb_n)
+	dlb_port_hdl_t DLB_Singleton::get_tx_port(int dlb_n)
 	{
 		dlb_port_hdl_t port;
-		tx_port_mtx.lock();
-		if(tx_ports[dlb_n].empty())
+
+		if(tx_dlb_ports.empty() || tx_dlb_ports[dlb_n].empty())
 		{
 			printf("Error: There are no free tx ports\n");
 			exit(1);
 		}
-		port = tx_ports[dlb_n].back();
-		tx_ports[dlb_n].pop_back();
-		tx_port_mtx.unlock();
+		port = tx_dlb_ports[dlb_n].back();
+		tx_dlb_ports[dlb_n].pop_back();
 
 		return port;
 	}
 
-	void push_back_dlb_queue(DLB_queue **q)
+	void DLB_Singleton::push_back_dlb_queue(DLB_queue **q)
 	{
 		queues_private.push_back(*q);
 		*q = nullptr;
-	}
-
-	dlb_port_hdl_t DLB_device::add_ldb_port_tx()
-	{
-		dlb_create_port_t args;
-
-		if (!cap.combined_credits) {
-			args.ldb_credit_pool_id = ldb_pool_id;
-			args.dir_credit_pool_id = dir_pool_id;
-		} else {
-			args.credit_pool_id = ldb_pool_id;
-		}
-
-		args.cq_depth = CQ_DEPTH;
-		args.num_ldb_event_state_entries = 8;
-		args.cos_id = DLB_PORT_COS_ID_ANY;
-
- 		int port_id = dlb_create_ldb_port(domain, &args);
-		if (port_id == -1)
-			error(1, errno, "dlb_create_ldb_port");
-
-		dlb_port_hdl_t port = dlb_attach_ldb_port(domain, port_id);
-		if (port == NULL)
-			error(1, errno, "dlb_attach_ldb_port");
-
-		return port;
-	}
-
-	dlb_port_hdl_t DLB_device::add_dir_port_tx()
-	{
-		dlb_create_port_t args;
-
-		if (!cap.combined_credits) {
-			args.ldb_credit_pool_id = ldb_pool_id;
-			args.dir_credit_pool_id = dir_pool_id;
-		} else {
-			args.credit_pool_id = ldb_pool_id;
-		}
-
-		args.cq_depth = CQ_DEPTH;
-
-		// Create port 
-		int port_id;
-		port_id = dlb_create_dir_port(domain, &args, -1);
-		if (port_id == -1)
-			error(1, errno, "dlb_create_dir_port");
-
-		dlb_port_hdl_t port = dlb_attach_dir_port(domain, port_id);
-		if (port == NULL)
-			error(1, errno, "dlb_attach_dir_port");
-
-		return port;
 	}
 
 	/****************************
@@ -289,10 +228,13 @@ namespace IDLB
 		std::vector<dlb_port_hdl_t>v_ports;
 		for(uint32_t i = 0; i < rsrcs.num_ldb_ports; i++)
 			v_ports.push_back(add_ldb_port_tx());
-		tx_ports.push_back(v_ports);
+
+		tx_dlb_ports.push_back(v_ports);
+
+		std::cout << "tx_ports" << tx_dlb_ports.size() << std::endl;
+		std::cout << "v_ports" << v_ports.size() << std::endl;
 
 		start_sched();
-		dlb_dev_ctr++;
 	}
 
 	DLB_device::~DLB_device()
@@ -339,7 +281,7 @@ namespace IDLB
 			args.num_ldb_credits = rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
 			args.num_dir_credits = rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
         	args.num_ldb_credit_pools = 1;
-        	args.num_dir_credit_pools = 1;
+       	args.num_dir_credit_pools = 1;
     	} else {
         	args.num_credits = rsrcs.num_credits * p_rsrsc / 100;
         	args.num_credit_pools = 1;
@@ -350,4 +292,55 @@ namespace IDLB
 		return dlb_create_sched_domain(dlb_hdl, &args);
 	}
 
+	dlb_port_hdl_t DLB_device::add_ldb_port_tx()
+	{
+		dlb_create_port_t args;
+
+		if (!cap.combined_credits) {
+			args.ldb_credit_pool_id = ldb_pool_id;
+			args.dir_credit_pool_id = dir_pool_id;
+		} else {
+			args.credit_pool_id = ldb_pool_id;
+		}
+
+		args.cq_depth = CQ_DEPTH;
+		args.num_ldb_event_state_entries = 8;
+		args.cos_id = DLB_PORT_COS_ID_ANY;
+
+ 		int port_id = dlb_create_ldb_port(domain, &args);
+		if (port_id == -1)
+			error(1, errno, "dlb_create_ldb_port");
+
+		dlb_port_hdl_t port = dlb_attach_ldb_port(domain, port_id);
+		if (port == NULL)
+			error(1, errno, "dlb_attach_ldb_port");
+
+		return port;
+	}
+
+	dlb_port_hdl_t DLB_device::add_dir_port_tx()
+	{
+		dlb_create_port_t args;
+
+		if (!cap.combined_credits) {
+			args.ldb_credit_pool_id = ldb_pool_id;
+			args.dir_credit_pool_id = dir_pool_id;
+		} else {
+			args.credit_pool_id = ldb_pool_id;
+		}
+
+		args.cq_depth = CQ_DEPTH;
+
+		// Create port
+		int port_id;
+		port_id = dlb_create_dir_port(domain, &args, -1);
+		if (port_id == -1)
+			error(1, errno, "dlb_create_dir_port");
+
+		dlb_port_hdl_t port = dlb_attach_dir_port(domain, port_id);
+		if (port == NULL)
+			error(1, errno, "dlb_attach_dir_port");
+
+		return port;
+	}
 }
