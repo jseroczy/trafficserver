@@ -44,7 +44,7 @@ ProtectedQueue::ProtectedQueue()
   ink_cond_init(&might_have_data);
 }
 
-#if TS_USE_DLB_t
+#if TS_USE_DLB
 TS_INLINE void
 ProtectedQueue::init_queue()
 {
@@ -55,16 +55,16 @@ ProtectedQueue::init_queue()
 TS_INLINE void
 ProtectedQueue::port_init()
 {
-  IDLB::DLB_Singleton * single = IDLB::DLB_Singleton::getInstance();
-  for(auto i = 0; i < IDLB::DLB_device::dlb_dev_ctr; i++)
-    dlb_port.push_back(IDLB::DLB_Singleton::getInstance()->get_tx_port(i));
+  IDLB::DLB_Singleton * dlb_instance = IDLB::DLB_Singleton::getInstance();
+  for(auto i = 0; i < dlb_instance->dlb_dev_num(); i++)
+    dlb_port.push_back(dlb_instance->get_tx_port(i));
 }
 #endif
 
 TS_INLINE
 ProtectedQueue::~ProtectedQueue()
 {
-#if TS_USE_DLB_t
+#if TS_USE_DLB
 	//IDLB::push_back_dlb_queue(&dlb_q);
 #endif
 }

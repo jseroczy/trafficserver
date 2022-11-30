@@ -69,7 +69,6 @@ namespace IDLB
 		dlb_port_hdl_t add_dir_port_tx();
 
 	public:
-		static int dlb_dev_ctr;
 		DLB_device(int);
 		~DLB_device();
 	};
@@ -82,33 +81,30 @@ namespace IDLB
 		{
 			std::cout << "Singleton DLB class constuctor called" << std::endl;
 			DLB_device *dlb_dev0 = new DLB_device(0);
+			dlb_dev_ctr++;
 			DLB_device *dlb_dev1 = new DLB_device(1);
+			dlb_dev_ctr++;
 		}
+		int dlb_dev_ctr = 0;
 
 	public:
 		static DLB_Singleton * getInstance()
 		{
 			dlb_sin_m.lock();
-			std::cout << "Enter singleton" << std::endl;
 			if(_instance == nullptr)
 			{
-				std::cout << "nullptr " << std::endl;
 				_instance = new DLB_Singleton;
 			}
-			else
-				std::cout << "not nullptr" << std::endl;
 			dlb_sin_m.unlock();
 			return _instance;
 		}
 
-		/* DLB_queues function */
         DLB_queue *get_dlb_queue();
         dlb_port_hdl_t get_tx_port(int dlb_n);
         void push_back_dlb_queue(DLB_queue **q);
+		int dlb_dev_num() { return dlb_dev_ctr; }
 	};
 
-        extern std::vector< DLB_queue*> queues_private;
-        extern std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
 }
 
 #endif /* define IDLB_H */
