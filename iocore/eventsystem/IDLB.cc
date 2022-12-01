@@ -7,12 +7,40 @@
 namespace IDLB
 {
 	DLB_Singleton* DLB_Singleton::_instance = nullptr;
+	constexpr static auto CQ_DEPTH  = 256;
 	static std::vector< DLB_queue*> queues_private;
 	static std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
+	static std::mutex dlb_sin_m;
 
 	/*************************************
 	*DLB_Singleton methods
 	**************************************/
+
+	DLB_Singleton * DLB_Singleton::getInstance()
+	{
+		dlb_sin_m.lock();
+		if(_instance == nullptr)
+		{
+			_instance = new DLB_Singleton;
+		}
+		dlb_sin_m.unlock();
+		return _instance;
+	}
+
+	DLB_Singleton::DLB_Singleton()
+	{
+		dlb_dev0 = new DLB_device(0);
+		dlb_dev_ctr++;
+		dlb_dev1 = new DLB_device(1);
+		dlb_dev_ctr++;
+	}
+
+	DLB_Singleton::~DLB_Singleton()
+	{
+		delete dlb_dev0;
+		delete dlb_dev1;
+	}
+
 	DLB_queue* DLB_Singleton::get_dlb_queue()
 	{
 		DLB_queue *ptr = nullptr;
@@ -156,7 +184,7 @@ namespace IDLB
 	/**************************************************************
 	*DLB device class
 	*************************************************************/
-	DLB_device::DLB_device(int dev_id)
+	DLB_Singleton::DLB_device::DLB_device(int dev_id)
 	{
 		device_ID = dev_id;
 		if (dlb_open(device_ID, &dlb_hdl) == -1)
@@ -218,8 +246,6 @@ namespace IDLB
 				error(1, errno, "dlb_create_credit_pool");
         }
 
-		printf("DEBUG_DLB: Succesfully create DLB device class object\n");
-
 		/* Create queues */
 		for(uint32_t i = 0; i < rsrcs.num_dir_ports; i++)
 			queues_private.push_back(new DLB_queue(cap.combined_credits, ldb_pool_id, dir_pool_id, domain, dev_id));
@@ -231,13 +257,10 @@ namespace IDLB
 
 		tx_dlb_ports.push_back(v_ports);
 
-		std::cout << "tx_ports" << tx_dlb_ports.size() << std::endl;
-		std::cout << "v_ports" << v_ports.size() << std::endl;
-
 		start_sched();
 	}
 
-	DLB_device::~DLB_device()
+	DLB_Singleton::DLB_device::~DLB_device()
 	{
 		/* Delete queues */
 		DLB_queue *q_ptr;
@@ -258,7 +281,7 @@ namespace IDLB
 			error(1, errno, "dlb_close");
 	}
 
-	void DLB_device::start_sched()
+	void DLB_Singleton::DLB_device::start_sched()
 	{
 		if (dlb_launch_domain_alert_thread(domain, NULL, NULL))
 			error(1, errno, "dlb_launch_domain_alert_thread");
@@ -268,7 +291,7 @@ namespace IDLB
 	}
 
 
-	int DLB_device::create_sched_domain()
+	int DLB_Singleton::DLB_device::create_sched_domain()
 	{
 		int p_rsrsc = partial_resources;
 		dlb_create_sched_domain_t args;
@@ -292,7 +315,7 @@ namespace IDLB
 		return dlb_create_sched_domain(dlb_hdl, &args);
 	}
 
-	dlb_port_hdl_t DLB_device::add_ldb_port_tx()
+	dlb_port_hdl_t DLB_Singleton::DLB_device::add_ldb_port_tx()
 	{
 		dlb_create_port_t args;
 
@@ -318,7 +341,7 @@ namespace IDLB
 		return port;
 	}
 
-	dlb_port_hdl_t DLB_device::add_dir_port_tx()
+	dlb_port_hdl_t DLB_Singleton::DLB_device::add_dir_port_tx()
 	{
 		dlb_create_port_t args;
 

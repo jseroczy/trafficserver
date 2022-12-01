@@ -48,7 +48,6 @@ ProtectedQueue::ProtectedQueue()
 TS_INLINE void
 ProtectedQueue::init_queue()
 {
-  printf("Get dlb queue\t");
   dlb_q = IDLB::DLB_Singleton::getInstance()->get_dlb_queue();
 }
 
@@ -65,7 +64,7 @@ TS_INLINE
 ProtectedQueue::~ProtectedQueue()
 {
 #if TS_USE_DLB
-	//IDLB::push_back_dlb_queue(&dlb_q);
+	IDLB::DLB_Singleton::getInstance()->push_back_dlb_queue(&dlb_q);
 #endif
 }
 
