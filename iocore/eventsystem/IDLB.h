@@ -5,7 +5,6 @@
 #include <atomic>
 #include "I_EventSystem.h"
 #include <iostream>
-#include <mutex>
 
 namespace IDLB
 {
@@ -68,8 +67,7 @@ namespace IDLB
 			~DLB_device();
 		};
 		static DLB_Singleton * _instance;
-		DLB_device *dlb_dev0;
-		DLB_device *dlb_dev1;
+		std::vector< DLB_device*>dlb_devices;
 		DLB_Singleton();
 		~DLB_Singleton();
 		int dlb_dev_ctr {};
@@ -79,6 +77,7 @@ namespace IDLB
 		DLB_queue *get_dlb_queue();
 		dlb_port_hdl_t get_tx_port(int dlb_n);
 		void push_back_dlb_queue(DLB_queue **q);
+		void push_back_tx_port(dlb_port_hdl_t *port, int);
 		int dlb_dev_num() { return dlb_dev_ctr; }
 	};
 

@@ -1,7 +1,7 @@
-#include "stdio.h"
 #include <error.h>
 #include <vector>
 #include <mutex>
+#include <dirent.h>
 #include "P_EventSystem.h"
 
 namespace IDLB
@@ -29,21 +29,39 @@ namespace IDLB
 
 	DLB_Singleton::DLB_Singleton()
 	{
-		dlb_dev0 = new DLB_device(0);
-		dlb_dev_ctr++;
-		dlb_dev1 = new DLB_device(1);
-		dlb_dev_ctr++;
+		DIR *directory;
+		struct dirent *dir_ent;
+		directory = opendir("/dev/");
+		if (directory)
+		{
+			while ((dir_ent = readdir(directory)) != NULL)
+			{
+				if(strstr(dir_ent->d_name, "dlb"))
+				{
+					int num = strtol (dir_ent->d_name + strlen("dlb"),NULL,10);
+					dlb_devices.push_back(new DLB_device(num));
+					dlb_dev_ctr++;
+				}
+			}
+			closedir(directory);
+		}
 	}
 
 	DLB_Singleton::~DLB_Singleton()
 	{
-		delete dlb_dev0;
-		delete dlb_dev1;
+		DLB_device *d_ptr;
+		while(dlb_devices.size())
+		{
+			d_ptr = dlb_devices.back();
+			dlb_devices.pop_back();
+			delete d_ptr;
+		}
 	}
 
 	DLB_queue* DLB_Singleton::get_dlb_queue()
 	{
 		DLB_queue *ptr = nullptr;
+
 		if(queues_private.empty())
 		{
 			printf("Error: There are no free dlb queues\n");
@@ -51,7 +69,7 @@ namespace IDLB
 		}
 		ptr = queues_private.back();
 		queues_private.pop_back();
-		printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
+		//printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
 
 		return ptr;
 	}
@@ -75,6 +93,10 @@ namespace IDLB
 	{
 		queues_private.push_back(*q);
 		*q = nullptr;
+	}
+
+	void DLB_Singleton::push_back_tx_port(dlb_port_hdl_t *port, int port_dev_id)
+	{
 	}
 
 	/****************************
@@ -149,8 +171,6 @@ namespace IDLB
 				printf("Problem with sending packet port: %p\n", port_tx);
 				break;
 			}
-			else if(ret == 0 && i == 9)
-				printf("Queue  full\n");
 			else if(ret)
 			{
 				elements_in_queue += ret;
@@ -212,8 +232,7 @@ namespace IDLB
 			if (use_max_credit_ldb == true)
 				ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
 			else if (num_credit_ldb <= max_ldb_credits)
-				ldb_pool_id = dlb_create_ldb_credit_pool(domain,
-														num_credit_ldb);
+				ldb_pool_id = dlb_create_ldb_credit_pool(domain, num_credit_ldb);
 			else
 				error(1, EINVAL, "Requested ldb credits are unavailable!");
 
@@ -223,28 +242,26 @@ namespace IDLB
 			if (use_max_credit_dir == true)
 				dir_pool_id = dlb_create_dir_credit_pool(domain, max_dir_credits);
 			else if (num_credit_dir <= max_dir_credits)
-				dir_pool_id = dlb_create_dir_credit_pool(domain,
-														num_credit_dir);
+				dir_pool_id = dlb_create_dir_credit_pool(domain, num_credit_dir);
 			else
 				error(1, EINVAL, "Requested dir credits are unavailable!");
 
 			if (dir_pool_id == -1)
 				error(1, errno, "dlb_create_dir_credit_pool");
-        }else{
+		}else{
 			int max_credits = rsrcs.num_credits * partial_resources / 100;
 
 			if (use_max_credit_combined == true)
 				ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
 			else
 				if (num_credit_combined <= max_credits)
-					ldb_pool_id = dlb_create_credit_pool(domain,
-											num_credit_combined);
+					ldb_pool_id = dlb_create_credit_pool(domain, num_credit_combined);
 				else
 					error(1, EINVAL, "Requested combined credits are unavailable!");
 
 			if (ldb_pool_id == -1)
 				error(1, errno, "dlb_create_credit_pool");
-        }
+		}
 
 		/* Create queues */
 		for(uint32_t i = 0; i < rsrcs.num_dir_ports; i++)
@@ -303,11 +320,11 @@ namespace IDLB
 		if (!cap.combined_credits) {
 			args.num_ldb_credits = rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
 			args.num_dir_credits = rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
-        	args.num_ldb_credit_pools = 1;
-       	args.num_dir_credit_pools = 1;
-    	} else {
-        	args.num_credits = rsrcs.num_credits * p_rsrsc / 100;
-        	args.num_credit_pools = 1;
+			args.num_ldb_credit_pools = 1;
+		args.num_dir_credit_pools = 1;
+		} else {
+			args.num_credits = rsrcs.num_credits * p_rsrsc / 100;
+			args.num_credit_pools = 1;
 		}
 		args.num_sn_slots[0] = rsrcs.num_sn_slots[0] * p_rsrsc / 100;
 		args.num_sn_slots[1] = rsrcs.num_sn_slots[1] * p_rsrsc / 100;
