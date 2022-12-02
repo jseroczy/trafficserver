@@ -45,6 +45,11 @@ namespace IDLB
 			}
 			closedir(directory);
 		}
+		if(!dlb_dev_ctr)
+		{
+			printf("There are no dlb devices\n");
+			exit(1);
+		}
 	}
 
 	DLB_Singleton::~DLB_Singleton()
