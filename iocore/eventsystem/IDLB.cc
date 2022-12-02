@@ -11,6 +11,8 @@ namespace IDLB
 	static std::vector< DLB_queue*> queues_private;
 	static std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
 	static std::mutex dlb_sin_m;
+	static std::mutex dlb_queue_mtx;
+	static std::mutex dlb_ports_mtx;
 
 	/*************************************
 	*DLB_Singleton methods
@@ -67,6 +69,7 @@ namespace IDLB
 	{
 		DLB_queue *ptr = nullptr;
 
+		dlb_queue_mtx.lock();
 		if(queues_private.empty())
 		{
 			printf("Error: There are no free dlb queues\n");
@@ -74,6 +77,7 @@ namespace IDLB
 		}
 		ptr = queues_private.back();
 		queues_private.pop_back();
+		dlb_queue_mtx.unlock();
 		//printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
 
 		return ptr;
@@ -83,6 +87,7 @@ namespace IDLB
 	{
 		dlb_port_hdl_t port;
 
+		dlb_ports_mtx.lock();
 		if(tx_dlb_ports.empty() || tx_dlb_ports[dlb_n].empty())
 		{
 			printf("Error: There are no free tx ports\n");
@@ -90,6 +95,7 @@ namespace IDLB
 		}
 		port = tx_dlb_ports[dlb_n].back();
 		tx_dlb_ports[dlb_n].pop_back();
+		dlb_ports_mtx.unlock();
 
 		return port;
 	}
