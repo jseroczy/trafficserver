@@ -50,10 +50,6 @@ ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
 ProtectedQueue::enqueue(Event *e)
 #endif
 {
-#if TS_USE_DLB
-  if(port == NULL) printf("port Error, queue_it_to: %d\n", dlb_q->get_queue_id());
-  if(dlb_q == nullptr) printf("Queue error\n");
-#endif
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;

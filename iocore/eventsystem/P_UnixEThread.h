@@ -40,6 +40,7 @@ TS_INLINE Event *
 EThread::schedule_imm(Continuation *cont, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
+
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -53,6 +54,7 @@ TS_INLINE Event *
 EThread::schedule_at(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
+
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -66,6 +68,7 @@ TS_INLINE Event *
 EThread::schedule_in(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
+
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif
@@ -79,6 +82,7 @@ TS_INLINE Event *
 EThread::schedule_every(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
+
 #ifdef ENABLE_EVENT_TRACKER
   e->set_location();
 #endif

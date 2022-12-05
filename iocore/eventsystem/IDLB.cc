@@ -1,21 +1,75 @@
-#include "stdio.h"
 #include <error.h>
 #include <vector>
 #include <mutex>
+#include <dirent.h>
 #include "P_EventSystem.h"
 
 namespace IDLB
 {
 	DLB_Singleton* DLB_Singleton::_instance = nullptr;
+	constexpr static auto CQ_DEPTH  = 256;
 	static std::vector< DLB_queue*> queues_private;
 	static std::vector<std::vector<dlb_port_hdl_t>>tx_dlb_ports;
+	static std::mutex dlb_sin_m;
+	static std::mutex dlb_queue_mtx;
+	static std::mutex dlb_ports_mtx;
 
 	/*************************************
 	*DLB_Singleton methods
 	**************************************/
+
+	DLB_Singleton * DLB_Singleton::getInstance()
+	{
+		dlb_sin_m.lock();
+		if(_instance == nullptr)
+		{
+			_instance = new DLB_Singleton;
+		}
+		dlb_sin_m.unlock();
+		return _instance;
+	}
+
+	DLB_Singleton::DLB_Singleton()
+	{
+		DIR *directory;
+		struct dirent *dir_ent;
+		directory = opendir("/dev/");
+		if (directory)
+		{
+			while ((dir_ent = readdir(directory)) != NULL)
+			{
+				if(strstr(dir_ent->d_name, "dlb"))
+				{
+					int num = strtol (dir_ent->d_name + strlen("dlb"),NULL,10);
+					dlb_devices.push_back(new DLB_device(num));
+					dlb_dev_ctr++;
+				}
+			}
+			closedir(directory);
+		}
+		if(!dlb_dev_ctr)
+		{
+			printf("There are no dlb devices\n");
+			exit(1);
+		}
+	}
+
+	DLB_Singleton::~DLB_Singleton()
+	{
+		DLB_device *d_ptr;
+		while(dlb_devices.size())
+		{
+			d_ptr = dlb_devices.back();
+			dlb_devices.pop_back();
+			delete d_ptr;
+		}
+	}
+
 	DLB_queue* DLB_Singleton::get_dlb_queue()
 	{
 		DLB_queue *ptr = nullptr;
+
+		dlb_queue_mtx.lock();
 		if(queues_private.empty())
 		{
 			printf("Error: There are no free dlb queues\n");
@@ -23,7 +77,8 @@ namespace IDLB
 		}
 		ptr = queues_private.back();
 		queues_private.pop_back();
-		printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
+		dlb_queue_mtx.unlock();
+		//printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
 
 		return ptr;
 	}
@@ -32,6 +87,7 @@ namespace IDLB
 	{
 		dlb_port_hdl_t port;
 
+		dlb_ports_mtx.lock();
 		if(tx_dlb_ports.empty() || tx_dlb_ports[dlb_n].empty())
 		{
 			printf("Error: There are no free tx ports\n");
@@ -39,6 +95,7 @@ namespace IDLB
 		}
 		port = tx_dlb_ports[dlb_n].back();
 		tx_dlb_ports[dlb_n].pop_back();
+		dlb_ports_mtx.unlock();
 
 		return port;
 	}
@@ -49,11 +106,15 @@ namespace IDLB
 		*q = nullptr;
 	}
 
+	void DLB_Singleton::push_back_tx_port(dlb_port_hdl_t *port, int port_dev_id)
+	{
+	}
+
 	/****************************
 	*DLB_queue methods
 	****************************/
-	DLB_queue::DLB_queue(bool cc, int l_p_id, int d_p_id, dlb_domain_hdl_t d_hdl, int d_id) 
-				: combined_credits(cc), ldb_pool_id(l_p_id), dir_pool_id(d_p_id), domain_hdl( d_hdl), dlb_id(d_id)
+	DLB_queue::DLB_queue(bool cc, int l_p_id, int d_p_id, dlb_domain_hdl_t d_hdl, int d_n) 
+				: combined_credits(cc), ldb_pool_id(l_p_id), dir_pool_id(d_p_id), domain_hdl( d_hdl), dlb_num(d_n)
 	{
 		queue_id = dlb_create_dir_queue(domain_hdl, -1);
 		if (queue_id == -1)
@@ -121,8 +182,6 @@ namespace IDLB
 				printf("Problem with sending packet port: %p\n", port_tx);
 				break;
 			}
-			else if(ret == 0 && i == 9)
-				printf("Queue  full\n");
 			else if(ret)
 			{
 				elements_in_queue += ret;
@@ -156,7 +215,7 @@ namespace IDLB
 	/**************************************************************
 	*DLB device class
 	*************************************************************/
-	DLB_device::DLB_device(int dev_id)
+	DLB_Singleton::DLB_device::DLB_device(int dev_id)
 	{
 		device_ID = dev_id;
 		if (dlb_open(device_ID, &dlb_hdl) == -1)
@@ -184,8 +243,7 @@ namespace IDLB
 			if (use_max_credit_ldb == true)
 				ldb_pool_id = dlb_create_ldb_credit_pool(domain, max_ldb_credits);
 			else if (num_credit_ldb <= max_ldb_credits)
-				ldb_pool_id = dlb_create_ldb_credit_pool(domain,
-														num_credit_ldb);
+				ldb_pool_id = dlb_create_ldb_credit_pool(domain, num_credit_ldb);
 			else
 				error(1, EINVAL, "Requested ldb credits are unavailable!");
 
@@ -195,34 +253,30 @@ namespace IDLB
 			if (use_max_credit_dir == true)
 				dir_pool_id = dlb_create_dir_credit_pool(domain, max_dir_credits);
 			else if (num_credit_dir <= max_dir_credits)
-				dir_pool_id = dlb_create_dir_credit_pool(domain,
-														num_credit_dir);
+				dir_pool_id = dlb_create_dir_credit_pool(domain, num_credit_dir);
 			else
 				error(1, EINVAL, "Requested dir credits are unavailable!");
 
 			if (dir_pool_id == -1)
 				error(1, errno, "dlb_create_dir_credit_pool");
-        }else{
+		}else{
 			int max_credits = rsrcs.num_credits * partial_resources / 100;
 
 			if (use_max_credit_combined == true)
 				ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
 			else
 				if (num_credit_combined <= max_credits)
-					ldb_pool_id = dlb_create_credit_pool(domain,
-											num_credit_combined);
+					ldb_pool_id = dlb_create_credit_pool(domain, num_credit_combined);
 				else
 					error(1, EINVAL, "Requested combined credits are unavailable!");
 
 			if (ldb_pool_id == -1)
 				error(1, errno, "dlb_create_credit_pool");
-        }
-
-		printf("DEBUG_DLB: Succesfully create DLB device class object\n");
+		}
 
 		/* Create queues */
 		for(uint32_t i = 0; i < rsrcs.num_dir_ports; i++)
-			queues_private.push_back(new DLB_queue(cap.combined_credits, ldb_pool_id, dir_pool_id, domain, dev_id));
+			queues_private.push_back(new DLB_queue(cap.combined_credits, ldb_pool_id, dir_pool_id, domain, tx_dlb_ports.size()));
 
 		/* create tx_ports */
 		std::vector<dlb_port_hdl_t>v_ports;
@@ -231,13 +285,10 @@ namespace IDLB
 
 		tx_dlb_ports.push_back(v_ports);
 
-		std::cout << "tx_ports" << tx_dlb_ports.size() << std::endl;
-		std::cout << "v_ports" << v_ports.size() << std::endl;
-
 		start_sched();
 	}
 
-	DLB_device::~DLB_device()
+	DLB_Singleton::DLB_device::~DLB_device()
 	{
 		/* Delete queues */
 		DLB_queue *q_ptr;
@@ -258,7 +309,7 @@ namespace IDLB
 			error(1, errno, "dlb_close");
 	}
 
-	void DLB_device::start_sched()
+	void DLB_Singleton::DLB_device::start_sched()
 	{
 		if (dlb_launch_domain_alert_thread(domain, NULL, NULL))
 			error(1, errno, "dlb_launch_domain_alert_thread");
@@ -268,7 +319,7 @@ namespace IDLB
 	}
 
 
-	int DLB_device::create_sched_domain()
+	int DLB_Singleton::DLB_device::create_sched_domain()
 	{
 		int p_rsrsc = partial_resources;
 		dlb_create_sched_domain_t args;
@@ -280,11 +331,11 @@ namespace IDLB
 		if (!cap.combined_credits) {
 			args.num_ldb_credits = rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
 			args.num_dir_credits = rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
-        	args.num_ldb_credit_pools = 1;
-       	args.num_dir_credit_pools = 1;
-    	} else {
-        	args.num_credits = rsrcs.num_credits * p_rsrsc / 100;
-        	args.num_credit_pools = 1;
+			args.num_ldb_credit_pools = 1;
+		args.num_dir_credit_pools = 1;
+		} else {
+			args.num_credits = rsrcs.num_credits * p_rsrsc / 100;
+			args.num_credit_pools = 1;
 		}
 		args.num_sn_slots[0] = rsrcs.num_sn_slots[0] * p_rsrsc / 100;
 		args.num_sn_slots[1] = rsrcs.num_sn_slots[1] * p_rsrsc / 100;
@@ -292,7 +343,7 @@ namespace IDLB
 		return dlb_create_sched_domain(dlb_hdl, &args);
 	}
 
-	dlb_port_hdl_t DLB_device::add_ldb_port_tx()
+	dlb_port_hdl_t DLB_Singleton::DLB_device::add_ldb_port_tx()
 	{
 		dlb_create_port_t args;
 
@@ -318,7 +369,7 @@ namespace IDLB
 		return port;
 	}
 
-	dlb_port_hdl_t DLB_device::add_dir_port_tx()
+	dlb_port_hdl_t DLB_Singleton::DLB_device::add_dir_port_tx()
 	{
 		dlb_create_port_t args;
 

@@ -370,6 +370,7 @@ EventProcessor::spawn_event_threads(EventType ev_type, int n_threads, size_t sta
   }
 
   Debug("iocore_thread", "Thread stack size set to %zu", stacksize);
+
   for (i = 0; i < n_threads; ++i) {
     EThread *t                   = new EThread(REGULAR, n_ethreads + i);
     all_ethreads[n_ethreads + i] = t;
@@ -424,7 +425,6 @@ EventProcessor::initThreadState(EThread *t)
 int
 EventProcessor::start(int n_event_threads, size_t stacksize)
 {
-  printf("EventProcessor::start %d\n", n_event_threads);
   // do some sanity checking.
   static bool started = false;
   ink_release_assert(!started);
