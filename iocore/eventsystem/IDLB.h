@@ -5,37 +5,13 @@
 #include <atomic>
 #include "I_EventSystem.h"
 #include <iostream>
+#include <mutex>
 
 namespace IDLB
 {
-	/* DLB queue class */
-	class DLB_queue
-	{
-		bool combined_credits;
-		int ldb_pool_id;
-		int dir_pool_id;
-		dlb_domain_hdl_t domain_hdl;
-		int dlb_num;
-		int queue_id;
-		/* port for rx is using only for this queue */
-		dlb_port_hdl_t rx_port;
-		dlb_port_hdl_t add_port_rx();
-		std::atomic<uint32_t> elements_in_queue{};
 
-	public:
-		int get_queue_id() { return queue_id; }
-		int get_dlb_id() { return dlb_num; }
-
-		DLB_queue(bool, int, int, dlb_domain_hdl_t, int);
-		~DLB_queue();
-
-		bool enqueue(Event *e, dlb_port_hdl_t);
-		Event *dequeue_external();
-		bool is_empty() { return (elements_in_queue == 0); }
-	};
-
-	/* Singleton */
-	class DLB_Singleton
+	/* Class designed as a singleton */
+	class DLB_Manager
 	{
 		/* DLB device */
 		class DLB_device
@@ -49,6 +25,7 @@ namespace IDLB
 			bool use_max_credit_combined = true;
 			bool use_max_credit_ldb = true;
 			bool use_max_credit_dir = true;
+			unsigned int num_seq_numbers;
 
 			dlb_resources_t rsrcs;
 			dlb_dev_cap_t cap;
@@ -56,31 +33,44 @@ namespace IDLB
 			dlb_domain_hdl_t domain;
  			int ldb_pool_id;
  			int dir_pool_id;
+			int queue_id; //implemented only one instance of queue
+
+			int create_ldb_port();
+			dlb_port_hdl_t add_ldb_port(bool);
+			int create_ldb_queue();
+			void pool_creation();
  			int  create_sched_domain();
 			void start_sched();
 
-			dlb_port_hdl_t add_ldb_port_tx();
-			dlb_port_hdl_t add_dir_port_tx();
-
 		public:
+			dlb_port_hdl_t tx_port;
+			std::vector<dlb_port_hdl_t>rx_ports;
+			dlb_port_hdl_t get_tx_port() { return tx_port; }
+			dlb_port_hdl_t get_rx_port();
+			int get_queue_id() { return queue_id; }
 			DLB_device(int);
 			~DLB_device();
 		};
-		static DLB_Singleton * _instance;
-		std::vector< DLB_device*>dlb_devices;
-		DLB_Singleton();
-		~DLB_Singleton();
-		int dlb_dev_ctr {};
+		//////////////////////////////////////////
+		////////Only for now, later in constructor
+		DLB_device *dlb_dev;
+		//////////////////////////////////////////
+
+		constexpr static auto CQ_DEPTH  = 8;
+		static DLB_Manager * _instance;
+		DLB_Manager();
+		~DLB_Manager();
 
 	public:
-		static DLB_Singleton * getInstance();
-		DLB_queue *get_dlb_queue();
-		dlb_port_hdl_t get_tx_port(int dlb_n);
-		void push_back_dlb_queue(DLB_queue **q);
-		void push_back_tx_port(dlb_port_hdl_t *port, int);
-		int dlb_dev_num() { return dlb_dev_ctr; }
+		static DLB_Manager * getInstance();
+		dlb_port_hdl_t get_rx_port() { return dlb_dev->get_rx_port(); }
+		void push_back_rx_port(dlb_port_hdl_t);
+		Event* dequeue(dlb_port_hdl_t);
+		void enqueue(Event *);
+
 	};
 
 }
+
 
 #endif /* define IDLB_H */

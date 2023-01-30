@@ -1703,7 +1703,7 @@ main(int /* argc ATS_UNUSED */, const char **argv)
 #endif
   bool admin_user_p = false;
 #ifdef TS_USE_DLB
-  IDLB::DLB_Singleton * dlb_inst = IDLB::DLB_Singleton::getInstance();
+  IDLB::DLB_Manager * dlb_inst = IDLB::DLB_Manager::getInstance();
 #endif
 
 #if defined(DEBUG) && defined(HAVE_MCHECK_PEDANTIC)

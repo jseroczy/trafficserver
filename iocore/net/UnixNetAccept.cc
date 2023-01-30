@@ -121,6 +121,7 @@ net_accept(NetAccept *na, void *ep, bool blockable)
       t = eventProcessor.assign_thread(na->opt.etype);
       h = get_NetHandler(t);
       // Assign NetHandler->mutex to NetVC
+      //JSJS
       vc->mutex = h->mutex;
       t->schedule_imm(vc);
     }
@@ -371,7 +372,8 @@ NetAccept::do_blocking_accept(EThread *t)
     NetHandler *h   = get_NetHandler(localt);
     // Assign NetHandler->mutex to NetVC
     vc->mutex = h->mutex;
-    localt->schedule_imm(vc);
+    //JSJS improve this algorithm
+    localt->schedule_imm_X(vc);
   } while (loop);
 
   return 1;

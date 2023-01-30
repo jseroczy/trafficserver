@@ -44,20 +44,13 @@
 extern ClassAllocator<Event> eventAllocator;
 
 void
-#if TS_USE_DLB
-ProtectedQueue::enqueue(Event *e, dlb_port_hdl_t port)
-#else
 ProtectedQueue::enqueue(Event *e)
-#endif
 {
   ink_assert(!e->in_the_prot_queue && !e->in_the_priority_queue);
   EThread *e_ethread   = e->ethread;
   e->in_the_prot_queue = 1;
-#if TS_USE_DLB
-  bool was_empty = dlb_q->enqueue(e, port);
-#else
+
   bool was_empty       = (ink_atomiclist_push(&al, e) == nullptr);
-#endif
 
   if (was_empty) {
     EThread *inserting_thread = this_ethread();
@@ -72,26 +65,18 @@ ProtectedQueue::enqueue(Event *e)
 void
 ProtectedQueue::dequeue_external()
 {
-#if TS_USE_DLB
-  if(dlb_q == nullptr) {
-    printf("Error queue dequeue");
-    exit(1);
-  }
   Event *e;
-
-  while((e = dlb_q-> dequeue_external()))
-  {
-
-    if(!e->cancelled)
+  IDLB::DLB_Manager * dlb_instance = IDLB::DLB_Manager::getInstance();
+  while ((e = dlb_instance->dequeue(rx_dlb_port))) {
+    printf("deq: %p, port: %p\n", e, rx_dlb_port);
+    /*if (!e->cancelled) {
       localQueue.enqueue(e);
-    else
-    {
+    } else {
       e->mutex = nullptr;
       eventAllocator.free(e);
-    }
+    } */
   }
-#else
-  Event *e = static_cast<Event *>(ink_atomiclist_popall(&al));
+  e = static_cast<Event *>(ink_atomiclist_popall(&al));
   // invert the list, to preserve order
   SLL<Event, Event::Link_link> l, t;
   t.head = e;
@@ -107,7 +92,8 @@ ProtectedQueue::dequeue_external()
       eventAllocator.free(e);
     }
   }
-#endif
+
+
 }
 
 void
@@ -119,11 +105,7 @@ ProtectedQueue::wait(ink_hrtime timeout)
    *   - And then the Event Thread goes to sleep and waits for the wakeup signal of `EThread::might_have_data`,
    *   - The `EThread::lock` will be locked again when the Event Thread wakes up.
    */
-#if TS_USE_DLB
-  if(dlb_q->is_empty() && localQueue.empty()) {
-#else
   if (INK_ATOMICLIST_EMPTY(al) && localQueue.empty()) {
-#endif
     timespec ts = ink_hrtime_to_timespec(timeout);
     ink_cond_timedwait(&might_have_data, &lock, &ts);
   }

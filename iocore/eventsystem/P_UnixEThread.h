@@ -51,6 +51,20 @@ EThread::schedule_imm(Continuation *cont, int callback_event, void *cookie)
 }
 
 TS_INLINE Event *
+EThread::schedule_imm_X(Continuation *cont, int callback_event, void *cookie)
+{
+  Event *e = ::eventAllocator.alloc();
+
+#ifdef ENABLE_EVENT_TRACKER
+  e->set_location();
+#endif
+
+  e->callback_event = callback_event;
+  e->cookie         = cookie;
+  return schedule_X(e->init(cont, 0, 0));
+}
+
+TS_INLINE Event *
 EThread::schedule_at(Continuation *cont, ink_hrtime t, int callback_event, void *cookie)
 {
   Event *e = ::eventAllocator.alloc();
@@ -120,12 +134,41 @@ EThread::schedule(Event *e)
   if (e->ethread == curr_thread) {
     EventQueueExternal.enqueue_local(e);
   } else {
-#if TS_USE_DLB
-    if(curr_thread->EventQueueExternal.dlb_port.empty())curr_thread->EventQueueExternal.port_init();
-    EventQueueExternal.enqueue(e, curr_thread->EventQueueExternal.dlb_port[EventQueueExternal.dlb_q->get_dlb_id()]);
-#else
     EventQueueExternal.enqueue(e);
-#endif
+  }
+
+  return e;
+}
+
+TS_INLINE Event *
+EThread::schedule_X(Event *e)
+{
+  e->ethread = this;
+  if (tt != REGULAR) {
+    ink_assert(tt == DEDICATED);
+    return eventProcessor.schedule(e, ET_CALL);
+  }
+  if (e->continuation->mutex) {
+    e->mutex = e->continuation->mutex;
+  } else {
+    e->mutex = e->continuation->mutex = e->ethread->mutex;
+  }
+  ink_assert(e->mutex.get());
+
+  // Make sure client IP debugging works consistently
+  // The continuation that gets scheduled later is not always the
+  // client VC, it can be HttpCacheSM etc. so save the flags
+  e->continuation->control_flags.set_flags(get_cont_flags().get_flags());
+
+  EThread *curr_thread     = this_ethread();
+  IDLB::DLB_Manager * dlb_instance = IDLB::DLB_Manager::getInstance();
+  printf("enq: %p\t", e);
+  dlb_instance->enqueue(e);
+
+  if (e->ethread == curr_thread) {
+    EventQueueExternal.enqueue_local(e);
+  } else {
+    EventQueueExternal.enqueue(e);
   }
 
   return e;

@@ -40,11 +40,8 @@
 #include "IDLB.h"
 #endif
 struct ProtectedQueue {
-#if TS_USE_DLB
-  void enqueue(Event *e, dlb_port_hdl_t port);
-#else
+
   void enqueue(Event *e);
-#endif
   void signal();
   int try_signal();             // Use non blocking lock and if acquired, signal
   void enqueue_local(Event *e); // Safe when called from the same thread
@@ -54,17 +51,14 @@ struct ProtectedQueue {
   void wait(ink_hrtime timeout); // Wait for @a timeout nanoseconds on a condition variable if there are no events.
 
 #if TS_USE_DLB
-  IDLB::DLB_queue *dlb_q = nullptr;
-  std::vector<dlb_port_hdl_t> dlb_port; // we need ports special port to write on specyfic DLB dev queue
-  void init_queue();
+  dlb_port_hdl_t rx_dlb_port;
   void port_init();
-#else
-  InkAtomicList al;
 #endif
+  InkAtomicList al;
+
   ink_mutex lock;
   ink_cond might_have_data;
   Que(Event, link) localQueue;
 
   ProtectedQueue();
-  ~ProtectedQueue();
 };

@@ -129,6 +129,7 @@ public:
 
   */
   Event *schedule_imm(Continuation *c, int callback_event = EVENT_IMMEDIATE, void *cookie = nullptr);
+  Event *schedule_imm_X(Continuation *c, int callback_event = EVENT_IMMEDIATE, void *cookie = nullptr);
 
   /**
     Schedules the continuation on this EThread to receive an event
@@ -305,6 +306,7 @@ public:
   ~EThread() override;
 
   Event *schedule(Event *e);
+  Event *schedule_X(Event *e);
 
   /** Block of memory to allocate thread specific data e.g. stat system arrays. */
   char thread_private[PER_THREAD_DATA];
