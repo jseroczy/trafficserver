@@ -367,7 +367,12 @@ NetAccept::do_blocking_accept(EThread *t)
 #endif
     SET_CONTINUATION_HANDLER(vc, (NetVConnHandler)&UnixNetVConnection::acceptEvent);
 
-    EThread *localt = eventProcessor.assign_thread(opt.etype);
+
+    EThread *localt;
+    do
+    {
+	localt = eventProcessor.assign_thread(opt.etype);
+    }while(!localt->EventQueueExternal.dlb_q->is_ready());
     NetHandler *h   = get_NetHandler(localt);
     // Assign NetHandler->mutex to NetVC
     vc->mutex = h->mutex;
