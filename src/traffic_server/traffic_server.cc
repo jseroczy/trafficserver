@@ -1702,9 +1702,6 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   ProfilerStart("/tmp/ts.prof");
 #endif
   bool admin_user_p = false;
-#ifdef TS_USE_DLB
-  IDLB::DLB_Singleton * dlb_inst = IDLB::DLB_Singleton::getInstance();
-#endif
 
 #if defined(DEBUG) && defined(HAVE_MCHECK_PEDANTIC)
   mcheck_pedantic(NULL);
@@ -1749,6 +1746,10 @@ main(int /* argc ATS_UNUSED */, const char **argv)
   // Bootstrap syslog.  Since we haven't read records.config
   //   yet we do not know where
   openlog("traffic_server", LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_DAEMON);
+
+#ifdef TS_USE_DLB
+  IDLB::DLB_Singleton * dlb_inst = IDLB::DLB_Singleton::getInstance();
+#endif
 
   // Setup Diags temporary to allow librecords to be initialized.
   // We will re-configure Diags again with proper configurations after
