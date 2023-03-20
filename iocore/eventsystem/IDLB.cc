@@ -113,8 +113,8 @@ namespace IDLB
 	/****************************
 	*DLB_queue methods
 	****************************/
-	DLB_queue::DLB_queue(bool cc, int l_p_id, int d_p_id, dlb_domain_hdl_t d_hdl, int d_id) 
-				: combined_credits(cc), ldb_pool_id(l_p_id), dir_pool_id(d_p_id), domain_hdl( d_hdl), dlb_id(d_id)
+	DLB_queue::DLB_queue(bool cc, int l_p_id, int d_p_id, dlb_domain_hdl_t d_hdl, int d_n) 
+				: combined_credits(cc), ldb_pool_id(l_p_id), dir_pool_id(d_p_id), domain_hdl( d_hdl), dlb_num(d_n)
 	{
 		queue_id = dlb_create_dir_queue(domain_hdl, -1);
 		if (queue_id == -1)
@@ -276,7 +276,7 @@ namespace IDLB
 
 		/* Create queues */
 		for(uint32_t i = 0; i < rsrcs.num_dir_ports; i++)
-			queues_private.push_back(new DLB_queue(cap.combined_credits, ldb_pool_id, dir_pool_id, domain, dev_id));
+			queues_private.push_back(new DLB_queue(cap.combined_credits, ldb_pool_id, dir_pool_id, domain, tx_dlb_ports.size()));
 
 		/* create tx_ports */
 		std::vector<dlb_port_hdl_t>v_ports;

@@ -15,7 +15,7 @@ namespace IDLB
 		int ldb_pool_id;
 		int dir_pool_id;
 		dlb_domain_hdl_t domain_hdl;
-		int dlb_id;
+		int dlb_num;
 		int queue_id;
 		/* port for rx is using only for this queue */
 		dlb_port_hdl_t rx_port;
@@ -24,7 +24,7 @@ namespace IDLB
 
 	public:
 		int get_queue_id() { return queue_id; }
-		int get_dlb_id() { return dlb_id; }
+		int get_dlb_id() { return dlb_num; }
 
 		DLB_queue(bool, int, int, dlb_domain_hdl_t, int);
 		~DLB_queue();
