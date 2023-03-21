@@ -31,22 +31,22 @@ namespace IDLB
 
 	DLB_Singleton::DLB_Singleton()
 	{
-//		DIR *directory;
-//		struct dirent *dir_ent;
-//		directory = opendir("/dev/");
-//		if (directory)
-//		{
-//			while ((dir_ent = readdir(directory)) != NULL)
-//			{
-//				if(strstr(dir_ent->d_name, "dlb"))
-//				{
-//					int num = strtol (dir_ent->d_name + strlen("dlb"),NULL,10);
-					dlb_devices.push_back(new DLB_device(1));
+		DIR *directory;
+		struct dirent *dir_ent;
+		directory = opendir("/dev/");
+		if (directory)
+		{
+			while ((dir_ent = readdir(directory)) != NULL)
+			{
+				if(strstr(dir_ent->d_name, "dlb"))
+				{
+					int num = strtol (dir_ent->d_name + strlen("dlb"),NULL,10);
+					dlb_devices.push_back(new DLB_device(num));
 					dlb_dev_ctr++;
-//				}
-//			}
-//			closedir(directory);
-//		}
+				}
+			}
+			closedir(directory);
+		}
 		if(!dlb_dev_ctr)
 		{
 			printf("There are no dlb devices\n");

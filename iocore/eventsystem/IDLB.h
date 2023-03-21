@@ -32,7 +32,6 @@ namespace IDLB
 		bool enqueue(Event *e, dlb_port_hdl_t);
 		Event *dequeue_external();
 		bool is_empty() { return (elements_in_queue == 0); }
-		bool is_ready() { return (elements_in_queue < 6); }
 	};
 
 	/* Singleton */
