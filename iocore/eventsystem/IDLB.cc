@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include "P_EventSystem.h"
 
+#if TS_USE_DLB
 namespace IDLB
 {
 	DLB_Singleton* DLB_Singleton::_instance = nullptr;
@@ -395,3 +396,4 @@ namespace IDLB
 		return port;
 	}
 }
+#endif

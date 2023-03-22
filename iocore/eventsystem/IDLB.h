@@ -6,6 +6,7 @@
 #include "I_EventSystem.h"
 #include <iostream>
 
+#if TS_USE_DLB
 namespace IDLB
 {
 	/* DLB queue class */
@@ -82,5 +83,5 @@ namespace IDLB
 	};
 
 }
-
+#endif
 #endif /* define IDLB_H */
