@@ -51,7 +51,7 @@ namespace IDLB
 		if(!dlb_dev_ctr)
 		{
 			printf("There are no dlb devices\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -74,12 +74,11 @@ namespace IDLB
 		if(queues_private.empty())
 		{
 			printf("Error: There are no free dlb queues\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		ptr = queues_private.back();
 		queues_private.pop_back();
 		dlb_queue_mtx.unlock();
-		//printf("Get: %d %d\n", ptr->get_queue_id(), ptr->get_dlb_id());
 
 		return ptr;
 	}
@@ -92,7 +91,7 @@ namespace IDLB
 		if(tx_dlb_ports.empty() || tx_dlb_ports[dlb_n].empty())
 		{
 			printf("Error: There are no free tx ports\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		port = tx_dlb_ports[dlb_n].back();
 		tx_dlb_ports[dlb_n].pop_back();
@@ -180,8 +179,8 @@ namespace IDLB
 			ret = dlb_send(port_tx, 1, &event);
 			if(ret == -1)
 			{
-				printf("Problem with sending packet port: %p\n", port_tx);
-				break;
+				perror("Problem with sending packets");
+				exit(EXIT_FAILURE);
 			}
 			else if(ret)
 			{
@@ -203,7 +202,10 @@ namespace IDLB
 
 		ret = dlb_recv(rx_port, 1, false, &event_dlb);
 		if(ret == -1 )
-			printf("Problem with receiving packets\n");
+		{
+			perror("Problem with receiving packets");
+			exit(EXIT_FAILURE);
+		}
 		else if(ret)
 		{
 			elements_in_queue -= ret;
@@ -265,11 +267,10 @@ namespace IDLB
 
 			if (use_max_credit_combined == true)
 				ldb_pool_id = dlb_create_credit_pool(domain, max_credits);
+			else if (num_credit_combined <= max_credits)
+				ldb_pool_id = dlb_create_credit_pool(domain, num_credit_combined);
 			else
-				if (num_credit_combined <= max_credits)
-					ldb_pool_id = dlb_create_credit_pool(domain, num_credit_combined);
-				else
-					error(1, EINVAL, "Requested combined credits are unavailable!");
+				error(1, EINVAL, "Requested combined credits are unavailable!");
 
 			if (ldb_pool_id == -1)
 				error(1, errno, "dlb_create_credit_pool");
@@ -333,7 +334,7 @@ namespace IDLB
 			args.num_ldb_credits = rsrcs.max_contiguous_ldb_credits * p_rsrsc / 100;
 			args.num_dir_credits = rsrcs.max_contiguous_dir_credits * p_rsrsc / 100;
 			args.num_ldb_credit_pools = 1;
-		args.num_dir_credit_pools = 1;
+			args.num_dir_credit_pools = 1;
 		} else {
 			args.num_credits = rsrcs.num_credits * p_rsrsc / 100;
 			args.num_credit_pools = 1;
